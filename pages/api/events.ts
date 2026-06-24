@@ -13,8 +13,17 @@ type CalendarEvent = {
   assignedTo?: string[];
 };
 
-// In-memory storage (replace with actual database)
-let events: CalendarEvent[] = [];
+const normalizeEvent = (event: any): CalendarEvent => ({
+  id: event._id?.toString?.() ?? event.id?.toString?.(),
+  title: event.title,
+  date: event.date,
+  time: event.time,
+  meatingLink: Array.isArray(event.meatingLink)
+    ? event.meatingLink[0]
+    : event.meatingLink,
+  color: event.color,
+  assignedTo: event.assignedTo || [],
+});
 
 const normalizeEvent = (event: any): CalendarEvent => ({
   _id: String(event._id || ""),
@@ -53,7 +62,7 @@ export default async function handler(
       title,
       date,
       time,
-      meatingLink,
+      meatingLink: Array.isArray(meatingLink) ? meatingLink[0] : meatingLink,
       color,
       assignedTo: assignedTo || [],
     });

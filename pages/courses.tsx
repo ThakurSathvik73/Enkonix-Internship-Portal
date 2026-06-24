@@ -4,6 +4,7 @@ import { Menu, BookOpen, Users, Clock, X, Search, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
+import { getCourses } from "@/utils/api";
 
 type Course = {
   _id?: string;
@@ -69,7 +70,24 @@ const Courses = () => {
       .some((value) => value!.toLowerCase().includes(query));
   });
 
-  const canCreateCourse = user?.role === "Admin" || user?.role === "Faculty";
+  const canCreateCourse = user?.role === "Superadmin" || user?.role === "Admin";
+
+  const handleEnroll = (courseId: string) => {
+    setCourses((current) =>
+      current.map((course) =>
+        (course._id || course.id) === courseId
+          ? { ...course, status: "enrolled", progress: 0 }
+          : course,
+      ),
+    );
+  };
+
+  const goToCourseContent = (course: Course) => {
+    const courseName = encodeURIComponent(course.name || course.title || "");
+    window.location.href = user?.role === "Student"
+      ? `/student-videos?course=${courseName}`
+      : "/admin-content";
+  };
 
   return (
     <>
@@ -127,12 +145,19 @@ const Courses = () => {
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {user?.role === "Student" && "Browse and enroll in available courses"}
-                  {user?.role === "Faculty" && "Manage your courses and track student enrollment"}
+                  {user?.role === "Faculty" && "View courses and create course content"}
                   {user?.role === "Admin" && "Manage all courses and instructors"}
+                  {user?.role === "Superadmin" && "Manage all courses and instructors"}
                 </p>
               </div>
               {canCreateCourse && (
-                <button className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = "/admin-content";
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                >
                   <Plus size={20} />
                   Create Course
                 </button>
@@ -150,9 +175,24 @@ const Courses = () => {
                   placeholder="Search courses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    aria-label="Clear course search"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
               </div>
+              {searchTerm && (
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Showing {filteredCourses.length} result{filteredCourses.length === 1 ? "" : "s"} for "{searchTerm.trim()}".
+                </p>
+              )}
             </div>
 
             {loading && (
@@ -187,8 +227,19 @@ const Courses = () => {
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {course.code ? `${course.code} | ${course.instructor}` : course.instructor}
                       </p>
+                      {course.code && (
+                        <p className="mt-1 text-xs font-medium text-orange-500">
+                          {course.code}
+                        </p>
+                      )}
                     </div>
                   </div>
+
+                  {course.description && (
+                    <p className="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                      {course.description}
+                    </p>
+                  )}
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
