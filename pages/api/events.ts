@@ -1,5 +1,6 @@
 import calenderevents from "@/data/models/calenderevents";
 import { connectDB } from "@/data/database/mangodb";
+import AnnouncementModel from "@/data/models/announcement";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type CalendarEvent = {
@@ -45,6 +46,23 @@ export default async function handler(
       color,
       assignedTo: assignedTo || [],
     });
+    const targetRoles = (assignedTo || []).flatMap((target: string) => {
+      if (target === "faculty") return ["Faculty"];
+      if (target === "students") return ["Student"];
+      return [];
+    });
+
+    await AnnouncementModel.create({
+      title: "New meeting scheduled",
+      description: `${title} is scheduled for ${date}${time ? ` at ${time}` : ""}.`,
+      type: "meeting",
+      targetRoles,
+      targetEmails: [],
+      createdBy: "",
+      sourceType: "event",
+      sourceId: String(newEvent._id),
+      important: true,
+    });
     return res.status(201).json(newEvent);
   }
 
@@ -55,11 +73,25 @@ export default async function handler(
     if (!id) {
       return res.status(400).json({ error: "Event ID is required" });
     }
-    await calenderevents.findByIdAndDelete(id);
+    const deletedEvent = await calenderevents.findByIdAndDelete(id);
+    if (!deletedEvent) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    await AnnouncementModel.deleteMany({
+      $or: [
+        { sourceType: "event", sourceId: String(id) },
+        {
+          type: "meeting",
+          description: `${deletedEvent.title} is scheduled for ${deletedEvent.date}${
+            deletedEvent.time ? ` at ${deletedEvent.time}` : ""
+          }.`,
+        },
+      ],
+    });
 
     return res.status(200).json({ message: "Event deleted successfully" });
   }
 
   return res.status(405).json({ error: "Method not allowed" });
 }
-

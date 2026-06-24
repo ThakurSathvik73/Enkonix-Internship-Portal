@@ -1,4 +1,5 @@
 import { connectDB } from "@/data/database/mangodb";
+import Video from "@/data/models/video";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type Video = {
@@ -11,37 +12,36 @@ type Video = {
   createdAt: Date;
 };
 
-// In-memory storage (replace with database model)
-let videos: Video[] = [];
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
   try {
-    
+    await connectDB();
 
     if (req.method === "GET") {
+      const videos = await Video.find();
       return res.status(200).json({ success: true, videos });
     }
 
     if (req.method === "POST") {
-      const { title, videoLink, course, description, createdBy } = req.body;
+      const { title, videoLink, videoUrl, course, description, createdBy, duration, assignedTo } = req.body;
+      const resolvedUrl = videoUrl || videoLink;
 
-      if (!title || !videoLink || !course) {
+      if (!title || !resolvedUrl || !course) {
         return res.status(400).json({ error: "Title, video link, and course are required" });
       }
 
-      const newVideo: Video = {
+      const newVideo = await Video.create({
         title,
-        videoLink,
+        videoUrl: resolvedUrl,
         course,
         description,
-        createdBy,
-        createdAt: new Date(),
-      };
+        createdBy: createdBy || "system",
+        duration,
+        assignedTo: assignedTo || [],
+      });
 
-      videos.push(newVideo);
       return res.status(201).json({ success: true, video: newVideo });
     }
 
@@ -50,7 +50,7 @@ export default async function handler(
       if (!id) {
         return res.status(400).json({ error: "Video ID is required" });
       }
-      videos = videos.filter((v) => v._id !== id);
+      await Video.findByIdAndDelete(id);
       return res.status(200).json({ success: true, message: "Video deleted" });
     }
 
@@ -60,4 +60,3 @@ export default async function handler(
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
-

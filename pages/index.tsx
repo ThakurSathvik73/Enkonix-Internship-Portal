@@ -2,6 +2,7 @@ import CalendarView from "@/components/Calendar";
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import {
+  Award,
   BookOpen,
   Circle,
   Clock,
@@ -213,33 +214,9 @@ export default function Home() {
     fetchTodoList();
   }, []);
 
-  const classes = [
-    {
-      name: "User Experience (UX) Design",
-      hours: "5:30hrs",
-      lessons: "05 Lessons",
-      active: true,
-    },
-    {
-      name: "Visual Design and Branding",
-      hours: "4:00hrs",
-      lessons: "03 Lessons",
-      active: false,
-    },
-  ];
-
-  const upcomingLessons = [
-    { name: "UX Design Fundamentals", time: "5:30pm" },
-    { name: "Interaction Design", time: "9:00pm" },
-  ];
-
-  const hoursData = [
-    { month: "Jan", study: 45, onlineTest: 20 },
-    { month: "Feb", study: 35, onlineTest: 15 },
-    { month: "Mar", study: 60, onlineTest: 25 },
-    { month: "Apr", study: 40, onlineTest: 18 },
-    { month: "May", study: 25, onlineTest: 12 },
-  ];
+  const classes: { name: string; hours: string; lessons: string; active: boolean }[] = [];
+  const upcomingLessons: { name: string; time: string }[] = [];
+  const hoursData: { month: string; study: number; onlineTest: number }[] = [];
 
   const handleTodoToggle = async (task: string) => {
     try {
@@ -358,34 +335,11 @@ export default function Home() {
                     Recent enrolled course
                   </h3>
                 </div>
-                <div className="rounded-2xl p-3 bg-gray-50 dark:bg-gray-800">
-                  <div className="w-12 h-12 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center mb-3 shadow-sm">
-                    <svg
-                      className="text-[#000000] dark:text-white"
-                      width={30}
-                      height={30}
-                      viewBox="0 0 512 512"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M167.02 309.34c-40.12 2.58-76.53 17.86-97.19 72.3c-2.35 6.21-8 9.98-14.59 9.98c-11.11 0-45.46-27.67-55.25-34.35C0 439.62 37.93 512 128 512c75.86 0 128-43.77 128-120.19c0-3.11-.65-6.08-.97-9.13zM457.89 0c-15.16 0-29.37 6.71-40.21 16.45C213.27 199.05 192 203.34 192 257.09c0 13.7 3.25 26.76 8.73 38.7l63.82 53.18c7.21 1.8 14.64 3.03 22.39 3.03c62.11 0 98.11-45.47 211.16-256.46c7.38-14.35 13.9-29.85 13.9-45.99C512 20.64 486 0 457.89 0"
-                      />
-                    </svg>
-                  </div>
-                  <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                    Product Design Course
-                  </h4>
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-orange-500"
-                        style={{ width: "60%" }}
-                      ></div>
-                    </div>
-                    <span className="ml-3 text-xs font-semibold text-orange-500 whitespace-nowrap">
-                      14/30 Tasks
-                    </span>
-                  </div>
+                <div className="rounded-2xl p-6 bg-gray-50 dark:bg-gray-800 text-center">
+                  <BookOpen className="mx-auto mb-3 text-gray-400" size={28} />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No enrolled courses available.
+                  </p>
                 </div>
               </div>
 
@@ -663,6 +617,7 @@ export default function Home() {
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
                   Hours Spent
                 </h3>
+                {hoursData.length > 0 ? (
                 <div className="relative h-48 w-full">
                   <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between h-full px-2">
                     {hoursData.map((data, idx) => (
@@ -695,6 +650,11 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
+                ) : (
+                  <div className="h-48 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                    No hours data available.
+                  </div>
+                )}
               </div>
 
               {/* Performance */}
@@ -709,40 +669,10 @@ export default function Home() {
                     <option>Yearly</option>
                   </select>
                 </div>
-                <div className="flex flex-col items-center justify-center">
-                  <div className="relative w-32 h-32 flex items-center justify-center">
-                    <svg
-                      className="transform -rotate-90"
-                      width="100"
-                      height="100"
-                    >
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#FED7AA"
-                        className="dark:stroke-orange-900"
-                        strokeWidth="8"
-                        fill="none"
-                      />
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="40"
-                        stroke="#F97316"
-                        strokeWidth="8"
-                        fill="none"
-                        strokeDasharray="251"
-                        strokeDashoffset="50"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span className="absolute text-xl font-bold text-gray-800 dark:text-gray-100">
-                      8.9
-                    </span>
-                  </div>
-                  <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
-                    Assignment Submission Grade
+                <div className="h-48 flex flex-col items-center justify-center text-center">
+                  <Award className="mb-3 text-gray-400" size={32} />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No performance data available.
                   </p>
                 </div>
               </div>
@@ -885,7 +815,7 @@ export default function Home() {
                   <Search size={18} className="text-gray-400" />
                 </div>
                 <div className="space-y-3">
-                  {classes.map((cls, idx) => (
+                  {classes.length > 0 ? classes.map((cls, idx) => (
                     <div
                       key={idx}
                       className={`p-4 rounded-lg border ${
@@ -930,7 +860,11 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No enrolled classes available.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -939,7 +873,7 @@ export default function Home() {
                   Upcoming Lessons
                 </h3>
                 <div className="space-y-3">
-                  {upcomingLessons.map((lesson, idx) => (
+                  {upcomingLessons.length > 0 ? upcomingLessons.map((lesson, idx) => (
                     <div
                       key={idx}
                       className="p-4 border border-gray-100 dark:border-gray-700 rounded-lg flex justify-between items-center"
@@ -961,7 +895,11 @@ export default function Home() {
                         Join
                       </button>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No upcoming lessons available.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
