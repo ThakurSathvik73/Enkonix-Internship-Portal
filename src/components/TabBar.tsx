@@ -1,5 +1,5 @@
 import { Bell, Check, Search, X } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ModeToggle } from "./theme/ModeToggle";
 
 type Props = {};
@@ -105,10 +105,7 @@ const searchablePages = [
 
 const TabBar = (props: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const notificationRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLFormElement>(null);
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -134,61 +131,6 @@ const TabBar = (props: Props) => {
   ]);
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
-  const normalizedSearch = searchQuery.trim().toLowerCase();
-  const searchResults = normalizedSearch
-    ? searchablePages.filter((page) =>
-        `${page.title} ${page.description} ${page.keywords}`
-          .toLowerCase()
-          .includes(normalizedSearch),
-      )
-    : [];
-
-  useEffect(() => {
-    if (!isNotificationsOpen && !isSearchOpen) return;
-
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      if (
-        notificationRef.current &&
-        !notificationRef.current.contains(event.target as Node)
-      ) {
-        setIsNotificationsOpen(false);
-      }
-
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
-        setIsSearchOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsNotificationsOpen(false);
-        setIsSearchOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("touchstart", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("touchstart", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isNotificationsOpen, isSearchOpen]);
-
-  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const firstResult = searchResults[0];
-    if (!firstResult) {
-      return;
-    }
-
-    window.location.href = firstResult.path;
-  };
 
   const markAllAsRead = () => {
     setNotifications((current) =>
@@ -205,73 +147,68 @@ const TabBar = (props: Props) => {
   return (
     <div className="w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between h-16.25">
       {/* Search Bar */}
-      <form
-        ref={searchRef}
-        onSubmit={handleSearchSubmit}
-        className="relative flex items-center gap-3 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-72 dark:bg-gray-800 focus-within:ring-2 focus-within:ring-orange-500/30"
-      >
+      <div className="flex items-center gap-3 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 w-72 dark:bg-gray-800">
         <Search size={18} className="text-orange-500" />
         <input
-          type="search"
+          type="text"
           placeholder="Search"
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setIsSearchOpen(true);
-          }}
-          onFocus={() => setIsSearchOpen(true)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="flex-1 outline-none text-sm text-gray-600 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent"
-          aria-label="Search"
         />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setIsSearchOpen(false);
-            }}
-            className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            aria-label="Clear search"
+        <div className="flex items-center gap-2">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <X size={14} />
-          </button>
-        )}
+            <path
+              d="M10.4564 2.78839H10.4564C10.8878 2.78839 11.3015 2.95976 11.6065 3.2648C11.9116 3.56984 12.083 3.98356 12.083 4.41495V4.41495C12.083 4.84634 11.9116 5.26006 11.6065 5.5651C11.3015 5.87014 10.8878 6.04151 10.4564 6.04151H8.82983V4.41495C8.82983 3.98356 9.0012 3.56984 9.30624 3.2648C9.61128 2.95976 10.025 2.78839 10.4564 2.78839V2.78839Z"
+              stroke="#FF4B00"
+              strokeWidth="1.39419"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M6.0415 6.0415H4.41494C3.98355 6.0415 3.56983 5.87013 3.26479 5.5651C2.95975 5.26006 2.78838 4.84633 2.78838 4.41494V4.41494C2.78838 3.98355 2.95975 3.56983 3.26479 3.26479C3.56983 2.95975 3.98355 2.78838 4.41494 2.78838H4.41494C4.84633 2.78838 5.26006 2.95975 5.5651 3.26479C5.87013 3.56983 6.0415 3.98355 6.0415 4.41494V6.0415Z"
+              stroke="#FF4B00"
+              strokeWidth="1.39419"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M8.82983 8.8299H10.4564C10.8878 8.8299 11.3015 9.00126 11.6065 9.3063C11.9116 9.61134 12.083 10.0251 12.083 10.4565V10.4565C12.083 10.8878 11.9116 11.3016 11.6065 11.6066C11.3015 11.9116 10.8878 12.083 10.4564 12.083H10.4564C10.025 12.083 9.61128 11.9116 9.30624 11.6066C9.0012 11.3016 8.82983 10.8878 8.82983 10.4565V8.8299Z"
+              stroke="#FF4B00"
+              strokeWidth="1.39419"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M4.41494 12.083H4.41494C3.98355 12.083 3.56983 11.9117 3.26479 11.6066C2.95975 11.3016 2.78838 10.8879 2.78838 10.4565V10.4565C2.78838 10.0251 2.95975 9.61135 3.26479 9.30631C3.56983 9.00127 3.98355 8.8299 4.41494 8.8299H6.0415V10.4565C6.0415 10.8879 5.87013 11.3016 5.5651 11.6066C5.26006 11.9117 4.84633 12.083 4.41494 12.083V12.083Z"
+              stroke="#FF4B00"
+              strokeWidth="1.39419"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M8.82989 6.0415H6.0415V8.82989H8.82989V6.0415Z"
+              stroke="#FF4B00"
+              strokeWidth="1.39419"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
 
-        {isSearchOpen && searchQuery.trim() && (
-          <div className="absolute left-0 top-full mt-3 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
-            <div className="max-h-96 overflow-y-auto py-2">
-              {searchResults.length > 0 ? (
-                searchResults.map((result) => (
-                  <button
-                    key={result.path}
-                    type="button"
-                    onClick={() => {
-                      window.location.href = result.path;
-                    }}
-                    className="w-full text-left px-4 py-3 hover:bg-orange-50 dark:hover:bg-orange-950/20"
-                  >
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                      {result.title}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {result.description}
-                    </p>
-                  </button>
-                ))
-              ) : (
-                <p className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  No results found for "{searchQuery.trim()}".
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </form>
+          <span className="text-orange-500 font-semibold text-sm">F</span>
+        </div>
+      </div>
 
       {/* Right Side - Notifications & User Profile */}
       <div className="flex items-center gap-4">
         {/* Notification Bell */}
-        <div ref={notificationRef} className="relative">
+        <div className="relative">
           <button
             type="button"
             onClick={() => setIsNotificationsOpen((open) => !open)}

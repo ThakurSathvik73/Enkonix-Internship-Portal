@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 type ViewMode = "month" | "week" | "day";
 
 type CalendarEvent = {
-  id?: string;
+  id: number;
   title: string;
   date: string; // YYYY-MM-DD
   time?: string;
@@ -90,11 +90,6 @@ const groupEventsByDate = (items: CalendarEvent[]) => {
     acc[key].push(event);
     return acc;
   }, {});
-};
-
-const getCurrentRole = () => {
-  if (typeof window === "undefined") return "";
-  return window.localStorage.getItem("role")?.toLowerCase() || "";
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -333,9 +328,9 @@ const SchedulePage = () => {
       } ${focusDate.getDate()}, ${focusDate.getFullYear()}`;
     return dayLabel;
   }, [currentView, focusDate, weekDays]);
-  const userRole = getCurrentRole();
+  const userRole = localStorage.getItem("role")?.toLowerCase();
   const renderEventChip = (event: CalendarEvent) => (
-    <>{(userRole !== "student" || !(event.assignedTo && event.assignedTo.includes("faculty"))) &&
+    <>{ userRole !== "student" || !(event.assignedTo && event.assignedTo.includes("faculty")) &&
       <button
         key={event.id}
         onClick={() => handleEventClick(event)}
@@ -451,11 +446,11 @@ const SchedulePage = () => {
           <div className="divide-y divide-gray-100">
             {Array.from({ length: 10 }, (_, idx) => 8 + idx).map((hour) => {
               const label = `${hour}:00`;
-              const matchingEvents = dayEvents.filter((event) => {
-                if (!event.time) return false;
-                const eventHour = Number(event.time.slice(0, 2));
-                return eventHour === hour;
-              });
+              const matchingEvents = dayEvents.filter((event) =>
+                event.time
+                  ? event.time.startsWith(String(hour).padStart(2, "0"))
+                  : false,
+              );
 
               return (
                 <div key={hour} className="py-3 flex items-start gap-4">
@@ -495,10 +490,10 @@ const SchedulePage = () => {
               {dayEvents.length} items
             </span>
           </div>
-              {dayEvents.length === 0 && (
-                <div className="text-sm text-gray-400">No events scheduled.</div>
-              )}
-              {dayEvents.map((event) => (
+          {dayEvents.length === 0 && (
+            <div className="text-sm text-gray-400">No events scheduled.</div>
+          )}
+          {dayEvents.map((event) => (
             <div
               key={event.id}
               className={`px-3 py-2 rounded-lg ${eventColorStyles[event.color]

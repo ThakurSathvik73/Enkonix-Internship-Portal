@@ -32,6 +32,7 @@ import React from "react";
 import { Bar, BarChart, ResponsiveContainer, XAxis } from "recharts";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiCall } from "@/utils/api";
 
 type Props = {};
 interface TodoProps {
@@ -258,18 +259,7 @@ const dashbord = (props: Props) => {
   React.useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await fetch(`/api/tasks?role=${user?.role}&email=${user?.email}`);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Response is not JSON");
-        }
-
-        const data = await response.json();
+        const data = await apiCall("/api/tasks");
         if (data.success && data.tasks) {
           setAssignedTasks(data.tasks);
         }

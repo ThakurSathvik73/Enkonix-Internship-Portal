@@ -1,6 +1,7 @@
 import { connectDB } from "@/data/database/mangodb";
 import AnnouncementModel from "@/data/models/announcement";
 import TaskModel from "@/data/models/task";
+import { requireRoles } from "@/utils/apiAuth";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type Task = {
@@ -35,6 +36,20 @@ export default async function handler(
         query.assignedTo = userEmail;
       } else if (userRole === "Student") {
         query.assignedStudents = userEmail;
+    const currentUser = requireRoles(req, res, ["Superadmin", "Admin", "Faculty", "Student"]);
+    if (!currentUser) return;
+
+    if (req.method === "GET") {
+      let filteredTasks = tasks;
+      
+      if (currentUser.role === "Superadmin" || currentUser.role === "Admin") {
+        filteredTasks = tasks;
+      } else if (currentUser.role === "Faculty") {
+        filteredTasks = tasks.filter((t) => t.assignedTo === currentUser.email);
+      } else if (currentUser.role === "Student") {
+        filteredTasks = tasks.filter((t) => 
+          t.assignedStudents?.includes(currentUser.email)
+        );
       }
 
       const tasks = await TaskModel.find(query).sort({ createdAt: -1 }).lean();
@@ -47,9 +62,12 @@ export default async function handler(
       if (role !== "Superadmin" && role !== "Admin") {
         return res.status(403).json({ error: "Only Admin and Superadmin can create tasks" });
       }
+      if (!requireRoles(req, res, ["Superadmin", "Admin"])) return;
 
-      if (!title || !course || !createdBy) {
-        return res.status(400).json({ error: "Title, course, and createdBy are required" });
+      const { title, description, course, dueDate } = req.body;
+
+      if (!title || !course) {
+        return res.status(400).json({ error: "Title and course are required" });
       }
 
       const assignedFaculty = String(assignedTo || "").toLowerCase().trim();
@@ -60,6 +78,7 @@ export default async function handler(
         college: college || "",
         createdBy: String(createdBy).toLowerCase().trim(),
         assignedTo: assignedFaculty,
+        createdBy: currentUser.email,
         dueDate: dueDate || new Date().toISOString(),
         status: assignedFaculty ? "assigned" : "created",
         createdAt: new Date(),
@@ -114,6 +133,31 @@ export default async function handler(
       const task = await TaskModel.findByIdAndUpdate(id, update, { new: true });
       if (!task) {
         return res.status(404).json({ error: "Task not found" });
+        if (!requireRoles(req, res, ["Superadmin", "Admin"])) return;
+        tasks[taskIndex].assignedTo = assignedTo;
+        tasks[taskIndex].status = "assigned";
+      }
+
+      if (assignedStudents !== undefined) {
+        if (!requireRoles(req, res, ["Superadmin", "Admin", "Faculty"])) return;
+        if (
+          currentUser.role === "Faculty" &&
+          tasks[taskIndex].assignedTo !== currentUser.email
+        ) {
+          return res.status(403).json({ error: "Faculty can only assign their own tasks" });
+        }
+        tasks[taskIndex].assignedStudents = assignedStudents;
+        tasks[taskIndex].status = "in-progress";
+      }
+
+      if (status !== undefined) {
+        if (
+          currentUser.role === "Student" &&
+          !tasks[taskIndex].assignedStudents?.includes(currentUser.email)
+        ) {
+          return res.status(403).json({ error: "Students can only update their own assigned tasks" });
+        }
+        tasks[taskIndex].status = status;
       }
 
       if (assignedTo !== undefined || assignedStudents !== undefined) {
@@ -147,6 +191,9 @@ export default async function handler(
         return res.status(403).json({ error: "Only Admin and Superadmin can delete tasks" });
       }
 
+      if (!requireRoles(req, res, ["Superadmin", "Admin"])) return;
+
+      const { id } = req.body;
       if (!id) {
         return res.status(400).json({ error: "Task ID is required" });
       }

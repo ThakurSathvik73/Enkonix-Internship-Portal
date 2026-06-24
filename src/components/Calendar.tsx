@@ -1,21 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Props = {};
 
-type CalendarEvent = {
-  id?: string;
-  title: string;
-  date: string;
-  time?: string;
-  meatingLink?: string;
-  assignedTo?: string[];
-};
-
 const CalendarView = (props: Props) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-
+  const [currentDate, setCurrentDate] = useState(new Date(2024, 5, 1)); // June 2024
+//calenders//
   const monthNames = [
     "January",
     "February",
@@ -66,21 +56,6 @@ const CalendarView = (props: Props) => {
     );
   };
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch("/api/events");
-        if (!response.ok) return;
-        const data = await response.json();
-        setEvents(Array.isArray(data) ? data : []);
-      } catch {
-        setEvents([]);
-      }
-    };
-
-    fetchEvents();
-  }, []);
-
   const isToday = (day: number | null) => {
     if (!day) return false;
     const today = new Date();
@@ -95,13 +70,6 @@ const CalendarView = (props: Props) => {
   const monthYear = `${
     monthNames[currentDate.getMonth()]
   } ${currentDate.getFullYear()}`;
-  const eventsByDate = useMemo(() => {
-    return events.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
-      if (!acc[event.date]) acc[event.date] = [];
-      acc[event.date].push(event);
-      return acc;
-    }, {});
-  }, [events]);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-2xl   ">
@@ -136,22 +104,14 @@ const CalendarView = (props: Props) => {
             className={`text-center text-sm py-1 cursor-pointer transition-colors ${
               date === null
                 ? "text-transparent pointer-events-none"
-                : (() => {
-                    const dateKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
-                    const hasMeetings = Boolean(eventsByDate[dateKey]?.length);
-                    if (hasMeetings) {
-                      return "bg-orange-500 text-white rounded-full font-semibold";
-                    }
-                    return isToday(date)
+                : date === 4
+                  ? "bg-orange-500 text-white rounded-full font-semibold"
+                  : date === 8
+                    ? "bg-orange-100 dark:bg-orange-950 text-orange-500 dark:text-orange-400 rounded-full font-semibold"
+                    : isToday(date)
                       ? "bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full font-semibold"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full";
-                  })()
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
             }`}
-            title={
-              date
-                ? `${eventsByDate[`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`]?.length || 0} meeting(s)`
-                : ""
-            }
           >
             {date || ""}
           </div>

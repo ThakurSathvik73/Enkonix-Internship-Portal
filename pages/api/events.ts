@@ -13,17 +13,8 @@ type CalendarEvent = {
   assignedTo?: string[];
 };
 
-const normalizeEvent = (event: any): CalendarEvent => ({
-  id: event._id?.toString?.() ?? event.id?.toString?.(),
-  title: event.title,
-  date: event.date,
-  time: event.time,
-  meatingLink: Array.isArray(event.meatingLink)
-    ? event.meatingLink[0]
-    : event.meatingLink,
-  color: event.color,
-  assignedTo: event.assignedTo || [],
-});
+// In-memory storage (replace with actual database)
+let events: CalendarEvent[] = [];
 
 const normalizeEvent = (event: any): CalendarEvent => ({
   _id: String(event._id || ""),
@@ -49,6 +40,7 @@ export default async function handler(
     // Fetch all events
     events = await calenderevents.find();
     return res.status(200).json(events.map(normalizeEvent));
+    return res.status(200).json(events);
   }
 
   if (req.method === "POST") {
@@ -62,7 +54,7 @@ export default async function handler(
       title,
       date,
       time,
-      meatingLink: Array.isArray(meatingLink) ? meatingLink[0] : meatingLink,
+      meatingLink,
       color,
       assignedTo: assignedTo || [],
     });
@@ -84,6 +76,7 @@ export default async function handler(
       important: true,
     });
     return res.status(201).json(normalizeEvent(newEvent));
+    return res.status(201).json(newEvent);
   }
 
   if (req.method === "DELETE") {
@@ -115,3 +108,4 @@ export default async function handler(
 
   return res.status(405).json({ error: "Method not allowed" });
 }
+

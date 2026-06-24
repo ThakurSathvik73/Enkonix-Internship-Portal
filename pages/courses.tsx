@@ -4,15 +4,10 @@ import { Menu, BookOpen, Users, Clock, X, Search, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
-import { getCourses } from "@/utils/api";
 
 type Course = {
-  _id?: string;
-  id?: string;
-  name?: string;
-  title?: string;
-  code?: string;
-  description?: string;
+  id: string;
+  title: string;
   instructor: string;
   students?: number;
   semester?: string;
@@ -20,6 +15,8 @@ type Course = {
   enrolledStudents?: string[];
   enrolledFaculty?: string[];
   duration?: string;
+  students: number;
+  duration: string;
   progress?: number;
   status?: "enrolled" | "completed" | "available";
 };
@@ -82,12 +79,42 @@ const Courses = () => {
     );
   };
 
-  const goToCourseContent = (course: Course) => {
-    const courseName = encodeURIComponent(course.name || course.title || "");
-    window.location.href = user?.role === "Student"
-      ? `/student-videos?course=${courseName}`
-      : "/admin-content";
-  };
+  // Mock data - in production, fetch from API
+  const [courses] = useState<Course[]>([
+    {
+      id: "1",
+      title: "Web Development Fundamentals",
+      instructor: "Dr. Smith",
+      students: 45,
+      duration: "12 weeks",
+      progress: 65,
+      status: user?.role === "Student" ? "enrolled" : "available",
+    },
+    {
+      id: "2",
+      title: "Data Structures & Algorithms",
+      instructor: "Prof. Johnson",
+      students: 38,
+      duration: "10 weeks",
+      progress: 30,
+      status: user?.role === "Student" ? "enrolled" : "available",
+    },
+    {
+      id: "3",
+      title: "UI/UX Design Principles",
+      instructor: "Ms. Williams",
+      students: 52,
+      duration: "8 weeks",
+      status: "available",
+    },
+  ]);
+
+  const filteredCourses = courses.filter((course) =>
+    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.instructor.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const canCreateCourse = user?.role === "Admin" || user?.role === "Faculty";
 
   return (
     <>
@@ -145,19 +172,12 @@ const Courses = () => {
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {user?.role === "Student" && "Browse and enroll in available courses"}
-                  {user?.role === "Faculty" && "View courses and create course content"}
+                  {user?.role === "Faculty" && "Manage your courses and track student enrollment"}
                   {user?.role === "Admin" && "Manage all courses and instructors"}
-                  {user?.role === "Superadmin" && "Manage all courses and instructors"}
                 </p>
               </div>
               {canCreateCourse && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = "/admin-content";
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                >
+                <button className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
                   <Plus size={20} />
                   Create Course
                 </button>
@@ -175,24 +195,9 @@ const Courses = () => {
                   placeholder="Search courses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                    aria-label="Clear course search"
-                  >
-                    <X size={18} />
-                  </button>
-                )}
               </div>
-              {searchTerm && (
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Showing {filteredCourses.length} result{filteredCourses.length === 1 ? "" : "s"} for "{searchTerm.trim()}".
-                </p>
-              )}
             </div>
 
             {loading && (
@@ -214,6 +219,10 @@ const Courses = () => {
               {filteredCourses.map((course) => (
                 <div
                   key={course._id || course.id || course.code || course.name}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCourses.map((course) => (
+                <div
+                  key={course.id}
                   className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-4 mb-4">
@@ -223,23 +232,13 @@ const Courses = () => {
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
                         {course.name || course.title || "Untitled course"}
+                        {course.title}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {course.code ? `${course.code} | ${course.instructor}` : course.instructor}
                       </p>
-                      {course.code && (
-                        <p className="mt-1 text-xs font-medium text-orange-500">
-                          {course.code}
-                        </p>
-                      )}
                     </div>
                   </div>
-
-                  {course.description && (
-                    <p className="mb-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
-                      {course.description}
-                    </p>
-                  )}
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
@@ -249,6 +248,11 @@ const Courses = () => {
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Clock size={16} />
                       <span>{course.semester || "Semester not set"}</span>
+                      <span>{course.students} students</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                      <Clock size={16} />
+                      <span>{course.duration}</span>
                     </div>
                     {typeof course.credits === "number" && (
                       <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -259,8 +263,14 @@ const Courses = () => {
 
                   <div className="flex gap-2">
                     {user?.role === "Student" && (
+                    {user?.role === "Student" && course.status === "available" && (
                       <button className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium">
                         Enroll
+                      </button>
+                    )}
+                    {user?.role === "Student" && course.status === "enrolled" && (
+                      <button className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium">
+                        Continue Learning
                       </button>
                     )}
                     {(user?.role === "Faculty" || user?.role === "Admin") && (
@@ -273,6 +283,7 @@ const Courses = () => {
               ))}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

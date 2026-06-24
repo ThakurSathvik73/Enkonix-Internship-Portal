@@ -4,6 +4,7 @@ import { Menu, CheckSquare, Plus, Search, X, User, Users, Calendar, Trash2 } fro
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiCall } from "@/utils/api";
 
 type Task = {
   _id?: string;
@@ -50,18 +51,7 @@ const TasksPage = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/tasks?role=${user?.role}&email=${user?.email}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Response is not JSON");
-      }
-      
-      const data = await response.json();
+      const data = await apiCall("/api/tasks");
       if (data.success && data.tasks) {
         setTasks(data.tasks);
       }
@@ -81,9 +71,8 @@ const TasksPage = () => {
     }
 
     try {
-      const response = await fetch("/api/tasks", {
+      await apiCall("/api/tasks", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newTask,
           role: user?.role || "",
@@ -91,11 +80,6 @@ const TasksPage = () => {
           createdBy: user?.email || "",
         }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || "Failed to create task");
-      }
 
       await fetchTasks();
       setShowCreateModal(false);
@@ -116,18 +100,13 @@ const TasksPage = () => {
     if (!showAssignModal) return;
 
     try {
-      const response = await fetch("/api/tasks", {
+      await apiCall("/api/tasks", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: showAssignModal._id || showAssignModal.id,
           assignedTo: assignData.facultyEmail,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to assign task to faculty");
-      }
 
       await fetchTasks();
       setShowAssignModal(null);
@@ -150,18 +129,13 @@ const TasksPage = () => {
     const studentList = assignData.studentEmails.split(",").map((e) => e.trim());
 
     try {
-      const response = await fetch("/api/tasks", {
+      await apiCall("/api/tasks", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: showAssignModal._id || showAssignModal.id,
           assignedStudents: studentList,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to assign task to students");
-      }
 
       await fetchTasks();
       setShowAssignModal(null);
