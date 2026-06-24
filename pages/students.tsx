@@ -37,35 +37,7 @@ const StudentsPage = () => {
     );
   }
 
-  const [students] = useState<Student[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john.doe@student.edu",
-      course: "Web Development",
-      gpa: 3.8,
-      assignmentsCompleted: 8,
-      assignmentsTotal: 10,
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane.smith@student.edu",
-      course: "Data Structures",
-      gpa: 3.9,
-      assignmentsCompleted: 9,
-      assignmentsTotal: 10,
-    },
-    {
-      id: "3",
-      name: "Bob Johnson",
-      email: "bob.johnson@student.edu",
-      course: "UI/UX Design",
-      gpa: 3.6,
-      assignmentsCompleted: 7,
-      assignmentsTotal: 10,
-    },
-  ]);
+  const [students] = useState<Student[]>([]);
 
   const filteredStudents = students.filter(
     (s) =>
@@ -149,7 +121,11 @@ const StudentsPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredStudents.map((student) => (
+              {filteredStudents.length === 0 ? (
+                <div className="md:col-span-2 lg:col-span-3 bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No students found.
+                </div>
+              ) : filteredStudents.map((student) => (
                 <div
                   key={student.id}
                   className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow"
@@ -217,4 +193,3 @@ const StudentsPage = () => {
 };
 
 export default StudentsPage;
-

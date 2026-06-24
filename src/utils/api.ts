@@ -2,12 +2,11 @@ export async function apiCall(
   endpoint: string,
   options: RequestInit = {}
 ) {
-  const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}") : {};
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(user?.role && { "x-user-role": user.role }),
-    ...(user?.email && { "x-user-email": user.email }),
+    ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
 

@@ -19,6 +19,21 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const normalizeStoredUser = (storedUser: User): User | null => {
+  const roleMap: Record<string, Role> = {
+    Superadmin: "Superadmin",
+    Admin: "Admin",
+    Faculty: "Faculty",
+    Student: "Student",
+    Employee: "Faculty",
+    Intern: "Student",
+  };
+  const role = roleMap[storedUser.role as string];
+
+  if (!storedUser.email || !storedUser.name || !role) return null;
+  return { ...storedUser, role };
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = normalizeStoredUser(JSON.parse(storedUser));
+        if (parsedUser) {
+          localStorage.setItem("user", JSON.stringify(parsedUser));
+          setUser(parsedUser);
+        } else {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
       } catch (e) {
         localStorage.removeItem("user");
         localStorage.removeItem("token");

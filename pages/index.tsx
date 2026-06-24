@@ -5,13 +5,17 @@ import {
   BookOpen,
   Circle,
   Clock,
+  GraduationCap,
   Menu,
   Plus, // Added for mobile menu
   Search,
+  Shield,
+  UserCheck,
   X,
 } from "lucide-react";
 import Head from "next/head";
 import React, { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ResourcesProps {
   name: string;
@@ -28,6 +32,7 @@ interface TodoProps {
 }
 
 export default function Home() {
+  const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{
     [key: number]: number;
@@ -323,11 +328,24 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12">
             {/* Greeting */}
             <div className="mb-8">
-              <h1 className="text-2xl md:text-4xl flex gap-2 items-center font-bold text-gray-800 dark:text-gray-100 mb-2">
-                Hello Harsh <span className="">👋</span>
-              </h1>
+              <div className="flex flex-wrap items-center gap-3 mb-2">
+                <h1 className="text-2xl md:text-4xl flex gap-2 items-center font-bold text-gray-800 dark:text-gray-100">
+                  Hello {user?.name || "User"} <span aria-hidden="true">👋</span>
+                </h1>
+                {user?.role && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30">
+                    {(user.role === "Superadmin" || user.role === "Admin") && <Shield className="w-3 h-3" />}
+                    {user.role === "Faculty" && <UserCheck className="w-3 h-3" />}
+                    {user.role === "Student" && <GraduationCap className="w-3 h-3" />}
+                    {user.role}
+                  </span>
+                )}
+              </div>
               <p className="text-gray-500 dark:text-gray-400 text-sm md:text-base">
-                Let's learn something new today!
+                {user?.role === "Superadmin" && "Manage the complete learning platform."}
+                {user?.role === "Admin" && "Manage your learning management system."}
+                {user?.role === "Faculty" && "Manage your courses and students."}
+                {user?.role === "Student" && "Let's learn something new today!"}
               </p>
             </div>
 

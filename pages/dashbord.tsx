@@ -32,6 +32,7 @@ import React from "react";
 import { Bar, BarChart, ResponsiveContainer, XAxis } from "recharts";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiCall } from "@/utils/api";
 
 type Props = {};
 interface TodoProps {
@@ -40,12 +41,7 @@ interface TodoProps {
   completed: boolean;
 }
 
-const attendanceData = [
-  { subject: "Web Development", present: 28, total: 30, percentage: 93 },
-  { subject: "Data Structures", present: 25, total: 30, percentage: 83 },
-  { subject: "UI/UX Design", present: 27, total: 30, percentage: 90 },
-  { subject: "Database Management", present: 24, total: 30, percentage: 80 },
-];
+const attendanceData: { subject: string; present: number; total: number; percentage: number }[] = [];
 
 const data = [
   { name: "Mon", hours: 4 },
@@ -67,11 +63,7 @@ const percentage = 89; // 8.9 out of 10 = 89%
 const circumference = 2 * Math.PI * 45;
 const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-const recentGrades = [
-  { subject: "Web Development", grade: "A+", score: 95, credits: 4 },
-  { subject: "Data Structures", grade: "A", score: 88, credits: 4 },
-  { subject: "UI/UX Design", grade: "A", score: 90, credits: 3 },
-];
+const recentGrades: { subject: string; grade: string; score: number; credits: number }[] = [];
 
 const dashbord = (props: Props) => {
   const { user } = useAuth();
@@ -95,29 +87,13 @@ const dashbord = (props: Props) => {
     color: "red",
   });
   const [todoList, setTodoList] = React.useState<TodoProps[]>([]);
-  const assignments = [
-    {
-      title: "React Project Submission",
-      subject: "Web Development",
-      dueDate: "Today, 11:59 PM",
-      status: "urgent",
-      progress: 75,
-    },
-    {
-      title: "Algorithm Analysis Report",
-      subject: "Data Structures",
-      dueDate: "Tomorrow, 05:00 PM",
-      status: "upcoming",
-      progress: 40,
-    },
-    {
-      title: "UI Design Wireframes",
-      subject: "UI/UX Design",
-      dueDate: "June 10, 2024",
-      status: "pending",
-      progress: 20,
-    },
-  ];
+  const assignments: {
+    title: string;
+    subject: string;
+    dueDate: string;
+    status: string;
+    progress: number;
+  }[] = [];
   const handleTodoChange = (
     field: keyof TodoProps,
     value: TodoProps[keyof TodoProps],
@@ -279,18 +255,7 @@ const dashbord = (props: Props) => {
   React.useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await fetch(`/api/tasks?role=${user?.role}&email=${user?.email}`);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Response is not JSON");
-        }
-
-        const data = await response.json();
+        const data = await apiCall("/api/tasks");
         if (data.success && data.tasks) {
           setAssignedTasks(data.tasks);
         }
@@ -305,26 +270,12 @@ const dashbord = (props: Props) => {
   const gpa = 3.8;
   const [selectedAnnouncement, setSelectedAnnouncement] =
     React.useState<any>(null);
-  const announcements = [
-    {
-      title: "Mid-term Exam Schedule Released",
-      description: "Check your dashboard for exam dates",
-      time: "2 hours ago",
-      important: true,
-    },
-    {
-      title: "Library Hours Extended",
-      description: "Now open until 10 PM on weekdays",
-      time: "5 hours ago",
-      important: false,
-    },
-    {
-      title: "Guest Lecture: AI in Education",
-      description: "Join us tomorrow at 3 PM in Auditorium",
-      time: "1 day ago",
-      important: true,
-    },
-  ];
+  const announcements: {
+    title: string;
+    description: string;
+    time: string;
+    important: boolean;
+  }[] = [];
   const upcomingClasses = [
     {
       subject: "Web Development",
@@ -341,6 +292,7 @@ const dashbord = (props: Props) => {
       room: "Room 205",
       type: "lecture",
       professor: "Prof. Johnson",
+      link: "https://teams.microsoft.com/meet/4130215984327?p=OQRlQMQCtq8OAnpopR",
       status: "upcoming",
     },
     {
@@ -349,26 +301,11 @@ const dashbord = (props: Props) => {
       room: "Online",
       type: "online",
       professor: "Ms. Williams",
+      link: "https://teams.microsoft.com/meet/4130215984327?p=OQRlQMQCtq8OAnpopR",
       status: "upcoming",
     },
   ];
-  const todos = [
-    {
-      task: "Human Interaction Designs",
-      date: "Tuesday, 25 June 2025",
-      completed: false,
-    },
-    {
-      task: "Design system Basics",
-      date: "Monday, 24 June 2025",
-      completed: false,
-    },
-    {
-      task: "Introduction to UI",
-      date: "Sunday, 23 June 2025",
-      completed: true,
-    },
-  ];
+  const todos: TodoProps[] = [];
   const quickActions = [
     {
       icon: Upload,
@@ -405,10 +342,12 @@ const dashbord = (props: Props) => {
   const handleAnnouncementClick = (announcement: any) => {
     setSelectedAnnouncement(announcement);
   };
-  const totalPercentage = Math.round(
-    attendanceData.reduce((acc, item) => acc + item.percentage, 0) /
-      attendanceData.length,
-  );
+  const totalPercentage = attendanceData.length
+    ? Math.round(
+        attendanceData.reduce((acc, item) => acc + item.percentage, 0) /
+          attendanceData.length,
+      )
+    : 0;
 
   return (
     <>

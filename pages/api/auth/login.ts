@@ -22,7 +22,9 @@ const roleMap: Record<string, "Superadmin" | "Admin" | "Faculty" | "Student"> = 
   superadmin: "Superadmin",
   admin: "Admin",
   faculty: "Faculty",
+  employee: "Faculty",
   student: "Student",
+  intern: "Student",
 };
 
 export default async function handler(

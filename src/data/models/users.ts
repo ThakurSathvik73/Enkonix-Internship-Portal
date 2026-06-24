@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { hashPassword } from "@/utils/password";
 
 // Declare the Schema of the Mongo model
 const userSchema = new Schema(
@@ -38,6 +39,14 @@ const userSchema = new Schema(
   },
   { timestamps: true },
 );
+
+userSchema.pre("save", function hashPlainPassword(this: any, next) {
+  if (this.isModified("password") && !String(this.password).startsWith("pbkdf2:")) {
+    this.password = hashPassword(this.password);
+  }
+
+  next();
+});
 
 //Export the model
 export default mongoose.models.User || mongoose.model("User", userSchema);

@@ -1,6 +1,6 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
-import { Menu, Users, Search, Plus, X, Shield, GraduationCap, UserCheck, Mail, MoreVertical } from "lucide-react";
+import { Menu, Users, Search, Plus, X, Shield, GraduationCap, UserCheck, Mail, Trash2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,10 @@ const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const canManageUsers = user?.role === "Superadmin" || user?.role === "Admin";
+  const roleOptions =
+    user?.role === "Superadmin"
+      ? ["Student", "Faculty", "Admin", "Superadmin"]
+      : ["Student", "Faculty"];
   const [users,setUsers] = useState<User[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", role: "Student", status: "active", password: "", confirmPassword: "" });
@@ -118,6 +122,44 @@ const UsersPage = () => {
       }
     };
 
+    const handleDeleteUser = async (targetUser: User) => {
+      if (targetUser.email === user?.email) {
+        alert("You cannot delete your own account.");
+        return;
+      }
+
+      if (user?.role === "Admin" && !["Faculty", "Student"].includes(targetUser.role)) {
+        alert("Admins can only delete faculty and students.");
+        return;
+      }
+
+      if (!confirm(`Delete ${targetUser.name}? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/users", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ id: targetUser.id }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          setUsers((prev) => prev.filter((item) => item.id !== targetUser.id));
+        } else {
+          alert(data.error || "Failed to delete user");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to delete user");
+      }
+    };
+
   const filteredUsers = users.filter(
     (u) =>
       (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -211,10 +253,9 @@ const UsersPage = () => {
                     <input required value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Full name" className="col-span-1 md:col-span-1 px-3 py-2 rounded border dark:bg-gray-800" />
                     <input required type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="Email" className="col-span-1 md:col-span-1 px-3 py-2 rounded border dark:bg-gray-800" />
                     <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "Superadmin" | "Admin" | "Faculty" | "Student" })} className="col-span-1 md:col-span-1 px-3 py-2 rounded border dark:bg-gray-800">
-                      <option>Student</option>
-                      <option>Faculty</option>
-                      <option>Admin</option>
-                      <option>Superadmin</option>
+                      {roleOptions.map((role) => (
+                        <option key={role}>{role}</option>
+                      ))}
                     </select>
                     <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Password" className="col-span-1 md:col-span-1 px-3 py-2 rounded border dark:bg-gray-800" />
                   </div>
@@ -316,8 +357,13 @@ const UsersPage = () => {
                           {new Date(u.joinedDate).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                            <MoreVertical size={18} />
+                          <button
+                            onClick={() => handleDeleteUser(u)}
+                            className="inline-flex items-center justify-center rounded p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+                            title="Delete user"
+                            aria-label={`Delete ${u.name}`}
+                          >
+                            <Trash2 size={18} />
                           </button>
                         </td>
                       </tr>

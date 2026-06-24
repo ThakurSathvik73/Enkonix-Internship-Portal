@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Search } from "lucide-react";
+import { Bell, Check, Search, X } from "lucide-react";
 import { useState } from "react";
 import { ModeToggle } from "./theme/ModeToggle";
 
@@ -6,6 +6,44 @@ type Props = {};
 
 const TabBar = (props: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "Assignment reminder",
+      message: "React Project Submission is due today.",
+      time: "Today",
+      read: false,
+    },
+    {
+      id: 2,
+      title: "Class update",
+      message: "Your next online class is available in Upcoming Classes.",
+      time: "Tomorrow",
+      read: false,
+    },
+    {
+      id: 3,
+      title: "Discussion reply",
+      message: "A faculty member replied to your course discussion.",
+      time: "2 days ago",
+      read: true,
+    },
+  ]);
+
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
+
+  const markAllAsRead = () => {
+    setNotifications((current) =>
+      current.map((notification) => ({ ...notification, read: true })),
+    );
+  };
+
+  const dismissNotification = (id: number) => {
+    setNotifications((current) =>
+      current.filter((notification) => notification.id !== id),
+    );
+  };
 
   return (
     <div className="w-full bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between h-16.25">
@@ -71,12 +109,83 @@ const TabBar = (props: Props) => {
       {/* Right Side - Notifications & User Profile */}
       <div className="flex items-center gap-4">
         {/* Notification Bell */}
-        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg relative">
-          <div>
-            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white dark:border-gray-900"></div>
-          </div>
-          <Bell size={20} className="text-gray-600 dark:text-gray-300" />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsNotificationsOpen((open) => !open)}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg relative"
+            aria-label="Open notifications"
+            aria-expanded={isNotificationsOpen}
+          >
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 rounded-full border-2 border-white dark:border-gray-900 text-[10px] leading-3 text-white">
+                {unreadCount}
+              </span>
+            )}
+            <Bell size={20} className="text-gray-600 dark:text-gray-300" />
+          </button>
+
+          {isNotificationsOpen && (
+            <div className="absolute right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Notifications
+                </h2>
+                <button
+                  type="button"
+                  onClick={markAllAsRead}
+                  className="inline-flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:underline"
+                >
+                  <Check size={14} />
+                  Mark read
+                </button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="p-4 text-sm text-gray-500 dark:text-gray-400">
+                    No notifications.
+                  </p>
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`flex gap-3 p-4 border-b last:border-b-0 border-gray-100 dark:border-gray-800 ${
+                        notification.read ? "" : "bg-orange-50 dark:bg-orange-950/20"
+                      }`}
+                    >
+                      <span
+                        className={`mt-2 h-2 w-2 rounded-full shrink-0 ${
+                          notification.read ? "bg-gray-300" : "bg-orange-500"
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {notification.title}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => dismissNotification(notification.id)}
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                            aria-label={`Dismiss ${notification.title}`}
+                          >
+                            <X size={14} className="text-gray-500" />
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                          {notification.message}
+                        </p>
+                        <p className="mt-2 text-[11px] text-gray-400">
+                          {notification.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div>
           <ModeToggle />

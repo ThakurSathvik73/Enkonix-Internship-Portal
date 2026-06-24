@@ -1,5 +1,6 @@
 import { connectDB } from "@/data/database/mangodb";
 import Course from "@/data/models/course";
+import { requireRoles } from "@/utils/apiAuth";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type ResponseData = {
@@ -15,17 +16,12 @@ export default async function handler(
   try {
     await connectDB();
 
-    const userRole = req.headers["x-user-role"] as string;
-    const userEmail = req.headers["x-user-email"] as string;
-
     if (req.method === "GET") {
       const courses = await Course.find();
       return res.status(200).json({ success: true, data: courses });
     } else if (req.method === "POST") {
-      // Only Admin can create courses
-      if (userRole !== "Superadmin" && userRole !== "Admin") {
-        return res.status(403).json({ error: "Only Admin can create courses" });
-      }
+      const currentUser = requireRoles(req, res, ["Superadmin", "Admin"]);
+      if (!currentUser) return;
 
       const { name, code, description, instructor, semester, credits } = req.body;
 
@@ -40,17 +36,15 @@ export default async function handler(
         instructor,
         semester,
         credits,
-        createdBy: userEmail,
+        createdBy: currentUser.email,
         enrolledStudents: [],
         enrolledFaculty: [],
       });
 
       return res.status(201).json({ success: true, data: newCourse });
     } else if (req.method === "PUT") {
-      // Only Admin can update courses
-      if (userRole !== "Superadmin" && userRole !== "Admin") {
-        return res.status(403).json({ error: "Only Admin can update courses" });
-      }
+      const currentUser = requireRoles(req, res, ["Superadmin", "Admin"]);
+      if (!currentUser) return;
 
       const { id, ...updateData } = req.body;
 
@@ -64,10 +58,8 @@ export default async function handler(
 
       return res.status(200).json({ success: true, data: updatedCourse });
     } else if (req.method === "DELETE") {
-      // Only Admin can delete courses
-      if (userRole !== "Superadmin" && userRole !== "Admin") {
-        return res.status(403).json({ error: "Only Admin can delete courses" });
-      }
+      const currentUser = requireRoles(req, res, ["Superadmin", "Admin"]);
+      if (!currentUser) return;
 
       const { id } = req.body;
 

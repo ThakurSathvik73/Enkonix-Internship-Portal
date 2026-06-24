@@ -1,6 +1,6 @@
 import { connectDB } from "@/data/database/mangodb";
 import users from "@/data/models/users";
-import { verifyAuthToken } from "@/utils/authToken";
+import { requireRoles } from "@/utils/apiAuth";
 import { hashPassword } from "@/utils/password";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -11,6 +11,7 @@ const displayRoleMap: Record<string, string> = {
   faculty: "Faculty",
   student: "Student",
 };
+const adminManageableRoles = ["faculty", "student"];
 
 function formatUser(user: any) {
   const data = user.toObject ? user.toObject() : user;
@@ -29,17 +30,14 @@ export default async function handler(
   res: NextApiResponse,
 ) {
   try {
-    const authHeader = Array.isArray(req.headers.authorization)
-      ? req.headers.authorization[0]
-      : req.headers.authorization;
-    const currentUser = verifyAuthToken(authHeader);
-    if (!currentUser || !["Superadmin", "Admin"].includes(currentUser.role)) {
-      return res.status(403).json({ error: "Only administrators can manage users" });
-    }
+    const currentUser = requireRoles(req, res, ["Superadmin", "Admin"]);
+    if (!currentUser) return;
 
     if (req.method === "GET") {
       await connectDB();
-      const all = await users.find({}).sort({ createdAt: -1 });
+      const query =
+        currentUser.role === "Superadmin" ? {} : { role: { $in: adminManageableRoles } };
+      const all = await users.find(query).sort({ createdAt: -1 });
       return res.status(200).json({ users: all.map(formatUser) });
     }
 
@@ -63,6 +61,13 @@ export default async function handler(
         return res.status(400).json({ error: "Invalid role" });
       }
 
+      if (
+        currentUser.role === "Admin" &&
+        !adminManageableRoles.includes(data.role)
+      ) {
+        return res.status(403).json({ error: "Admins can only create faculty and students" });
+      }
+
       if (data.role === "superadmin" && currentUser.role !== "Superadmin") {
         return res.status(403).json({ error: "Only a superadmin can create another superadmin" });
       }
@@ -80,6 +85,38 @@ export default async function handler(
       const userDoc = new users(data);
       await userDoc.save();
       return res.status(201).json({ message: "User created", user: formatUser(userDoc) });
+    }
+
+    if (req.method === "DELETE") {
+      await connectDB();
+      const id = String(req.body.id || "");
+
+      if (!id) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const userToDelete = await users.findById(id);
+      if (!userToDelete) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (userToDelete.email === currentUser.email) {
+        return res.status(400).json({ error: "You cannot delete your own account" });
+      }
+
+      if (
+        currentUser.role === "Admin" &&
+        !adminManageableRoles.includes(userToDelete.role)
+      ) {
+        return res.status(403).json({ error: "Admins can only delete faculty and students" });
+      }
+
+      if (userToDelete.role === "superadmin" && currentUser.role !== "Superadmin") {
+        return res.status(403).json({ error: "Only a superadmin can delete a superadmin" });
+      }
+
+      await users.findByIdAndDelete(id);
+      return res.status(200).json({ message: "User deleted" });
     }
 
     return res.status(405).json({ error: "Method Not Allowed" });

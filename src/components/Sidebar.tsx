@@ -123,28 +123,15 @@ const Sidebar = (props: Props) => {
             </>
           )}
         </h1>
-        <div className="flex relative ">
-          <div className="flex not-lg:hidden  absolute top-0 right-0 transform translate-x-10 -translate-y-1/2 ">
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className=" p-0  hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-            >
-              <ChevronLeft
-                size={20}
-                className="text-gray-600 dark:text-gray-300 hover:bg-"
-              />
-            </button>
-            <button
-              onClick={() => setIsCollapsed(false)}
-              className=" p-0  hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-            >
-              <ChevronRight
-                size={20}
-                className="text-gray-600 dark:text-gray-300"
-              />
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+          className="hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </button>
       </div>
 
       {/* Menu Items */}
