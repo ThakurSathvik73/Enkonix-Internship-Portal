@@ -4,6 +4,7 @@ import AnnouncementModel from "@/data/models/announcement";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type CalendarEvent = {
+  _id?: string;
   title: string;
   date: string;
   time?: string;
@@ -14,6 +15,16 @@ type CalendarEvent = {
 
 // In-memory storage (replace with actual database)
 let events: CalendarEvent[] = [];
+
+const normalizeEvent = (event: any): CalendarEvent => ({
+  _id: String(event._id || ""),
+  title: event.title,
+  date: event.date,
+  time: event.time,
+  meatingLink: event.meatingLink,
+  color: event.color,
+  assignedTo: event.assignedTo || [],
+});
 
 export default async function handler(
   req: NextApiRequest,
@@ -28,7 +39,7 @@ export default async function handler(
   if (req.method === "GET") {
     // Fetch all events
     events = await calenderevents.find();
-    return res.status(200).json(events);
+    return res.status(200).json(events.map(normalizeEvent));
   }
 
   if (req.method === "POST") {
@@ -63,7 +74,7 @@ export default async function handler(
       sourceId: String(newEvent._id),
       important: true,
     });
-    return res.status(201).json(newEvent);
+    return res.status(201).json(normalizeEvent(newEvent));
   }
 
   if (req.method === "DELETE") {

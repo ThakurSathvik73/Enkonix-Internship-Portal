@@ -6,15 +6,21 @@ import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Course = {
-  _id: string;
-  name: string;
+  _id?: string;
+  id?: string;
+  name?: string;
+  title?: string;
   code?: string;
   description?: string;
   instructor: string;
+  students?: number;
   semester?: string;
   credits?: number;
   enrolledStudents?: string[];
   enrolledFaculty?: string[];
+  duration?: string;
+  progress?: number;
+  status?: "enrolled" | "completed" | "available";
 };
 
 const Courses = () => {
@@ -48,11 +54,20 @@ const Courses = () => {
     fetchCourses();
   }, []);
 
-  const filteredCourses = courses.filter((course) =>
-    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.instructor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (course.code || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCourses = courses.filter((course) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
+
+    return [
+      course.name,
+      course.title,
+      course.code,
+      course.description,
+      course.instructor,
+    ]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(query));
+  });
 
   const canCreateCourse = user?.role === "Admin" || user?.role === "Faculty";
 
@@ -158,7 +173,7 @@ const Courses = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCourses.map((course) => (
                 <div
-                  key={course._id}
+                  key={course._id || course.id || course.code || course.name}
                   className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-4 mb-4">
@@ -167,7 +182,7 @@ const Courses = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                        {course.name}
+                        {course.name || course.title || "Untitled course"}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {course.code ? `${course.code} | ${course.instructor}` : course.instructor}
