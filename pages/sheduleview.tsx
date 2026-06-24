@@ -7,6 +7,15 @@ import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
+type CalendarEvent = {
+  id?: string;
+  title: string;
+  date: string;
+  time?: string;
+  meatingLink?: string;
+  assignedTo?: string[];
+};
+
 /* -------------------- SETUP -------------------- */
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -70,6 +79,16 @@ for (let i = 0; i < CLASS_SUBJECTS.length; i++) {
   hour++;
 }
 
+const toDateTime = (date: string, time?: string) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const result = new Date(year, month - 1, day);
+  if (time) {
+    const [hours, minutes] = time.split(":").map(Number);
+    result.setHours(hours, minutes, 0, 0);
+  }
+  return result;
+};
+
 /* -------------------- COUNTDOWN REMINDER -------------------- */
 function CountdownReminder({
   date,
@@ -121,6 +140,7 @@ export default function Dashboard() {
   const [month, setMonth] = useState(today.getMonth());
   const [year, setYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [holidayName, setHolidayName] = useState("");
@@ -132,6 +152,22 @@ export default function Dashboard() {
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch("/api/events");
+        if (!response.ok) return;
+        const data = await response.json();
+        setEvents(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to fetch events:", error);
+        setEvents([]);
+      }
+    };
+
+    fetchEvents();
   }, []);
 
   const getHoliday = (date: Date) =>
@@ -149,6 +185,17 @@ export default function Dashboard() {
     setSelectedDate(start);
     setShowScheduleModal(true);
   };
+
+  const calendarEvents = events.map((event) => ({
+    id: event.id || `${event.date}-${event.title}`,
+    title: event.time ? `${event.time} ${event.title}` : event.title,
+    start: toDateTime(event.date, event.time),
+    end: toDateTime(event.date, event.time),
+    resource: event,
+  }));
+
+  const selectedDateKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+  const assignedMeetings = events.filter((event) => event.date === selectedDateKey);
 
   return (
     <div
@@ -221,11 +268,22 @@ export default function Dashboard() {
           date={currentDate}
           views={["month"]}
           selectable
+          events={calendarEvents}
           startAccessor="start"
           endAccessor="end"
           style={{ height: "75vh" }}
           onSelectSlot={handleSelectSlot}
           toolbar={false}
+          popup
+          eventPropGetter={() => ({
+            style: {
+              backgroundColor: "#f97316",
+              borderRadius: "8px",
+              border: "none",
+              color: "white",
+              fontSize: "12px",
+            },
+          })}
           dayPropGetter={(date) => {
             const holiday = getHoliday(date);
             if (holiday)
@@ -281,6 +339,36 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+                {assignedMeetings.length > 0 && (
+                  <div className="pt-2">
+                    <h3 className="mb-3 text-lg font-semibold text-yellow-500">
+                      Meetings on this date
+                    </h3>
+                    <div className="space-y-3">
+                      {assignedMeetings.map((meeting) => (
+                        <div
+                          key={meeting.id || `${meeting.date}-${meeting.title}`}
+                          className="p-4 rounded-2xl shadow-lg bg-indigo-600 text-white"
+                        >
+                          <div className="flex justify-between gap-3">
+                            <span className="font-semibold">{meeting.title}</span>
+                            {meeting.time && <span className="text-sm opacity-90">{meeting.time}</span>}
+                          </div>
+                          {meeting.meatingLink && (
+                            <a
+                              href={meeting.meatingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-block text-sm underline break-all"
+                            >
+                              Join meeting
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="mt-6 flex justify-center">

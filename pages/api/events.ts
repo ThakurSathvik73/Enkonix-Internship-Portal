@@ -3,6 +3,7 @@ import { connectDB } from "@/data/database/mangodb";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type CalendarEvent = {
+  id?: string;
   title: string;
   date: string;
   time?: string;
@@ -11,8 +12,17 @@ type CalendarEvent = {
   assignedTo?: string[];
 };
 
-// In-memory storage (replace with actual database)
-let events: CalendarEvent[] = [];
+const normalizeEvent = (event: any): CalendarEvent => ({
+  id: event._id?.toString?.() ?? event.id?.toString?.(),
+  title: event.title,
+  date: event.date,
+  time: event.time,
+  meatingLink: Array.isArray(event.meatingLink)
+    ? event.meatingLink[0]
+    : event.meatingLink,
+  color: event.color,
+  assignedTo: event.assignedTo || [],
+});
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,8 +36,8 @@ export default async function handler(
   }
   if (req.method === "GET") {
     // Fetch all events
-    events = await calenderevents.find();
-    return res.status(200).json(events);
+    const events = await calenderevents.find().lean();
+    return res.status(200).json(events.map(normalizeEvent));
   }
 
   if (req.method === "POST") {
@@ -41,11 +51,11 @@ export default async function handler(
       title,
       date,
       time,
-      meatingLink,
+      meatingLink: Array.isArray(meatingLink) ? meatingLink[0] : meatingLink,
       color,
       assignedTo: assignedTo || [],
     });
-    return res.status(201).json(newEvent);
+    return res.status(201).json(normalizeEvent(newEvent));
   }
 
   if (req.method === "DELETE") {
@@ -62,4 +72,3 @@ export default async function handler(
 
   return res.status(405).json({ error: "Method not allowed" });
 }
-
