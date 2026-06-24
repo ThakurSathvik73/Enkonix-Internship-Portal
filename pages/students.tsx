@@ -1,7 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import { Menu, Users, Search, GraduationCap, Mail, Award, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,7 +10,8 @@ type Student = {
   name: string;
   email: string;
   course: string;
-  gpa: number;
+  college: string;
+  gpa: number | string;
   assignmentsCompleted: number;
   assignmentsTotal: number;
 };
@@ -19,6 +20,33 @@ const StudentsPage = () => {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.role !== "Faculty") return;
+
+    const fetchStudents = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/students?faculty=${encodeURIComponent(user.email)}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch students");
+        }
+
+        setStudents(data.students || []);
+      } catch (error) {
+        console.error("Failed to fetch students:", error);
+        setStudents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudents();
+  }, [user?.email, user?.role]);
 
   // Only Faculty can access this page
   if (user?.role !== "Faculty") {
@@ -37,13 +65,12 @@ const StudentsPage = () => {
     );
   }
 
-  const [students] = useState<Student[]>([]);
-
   const filteredStudents = students.filter(
     (s) =>
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.course.toLowerCase().includes(searchTerm.toLowerCase())
+      s.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.college.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -121,7 +148,11 @@ const StudentsPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredStudents.length === 0 ? (
+              {loading ? (
+                <div className="md:col-span-2 lg:col-span-3 bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Loading students...
+                </div>
+              ) : filteredStudents.length === 0 ? (
                 <div className="md:col-span-2 lg:col-span-3 bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
                   No students found.
                 </div>
@@ -152,6 +183,14 @@ const StudentsPage = () => {
                         {student.course}
                       </p>
                     </div>
+                    {student.college && (
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">College</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {student.college}
+                        </p>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">GPA</p>
@@ -175,9 +214,9 @@ const StudentsPage = () => {
                       <div
                         className="bg-orange-500 h-2 rounded-full transition-all"
                         style={{
-                          width: `${
-                            (student.assignmentsCompleted / student.assignmentsTotal) * 100
-                          }%`,
+                          width: student.assignmentsTotal
+                            ? `${(student.assignmentsCompleted / student.assignmentsTotal) * 100}%`
+                            : "0%",
                         }}
                       />
                     </div>

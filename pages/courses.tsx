@@ -1,7 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import { Menu, BookOpen, Users, Clock, X, Search, Plus } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCourses } from "@/utils/api";
@@ -15,86 +15,45 @@ type Course = {
   description?: string;
   instructor: string;
   students?: number;
+  semester?: string;
+  credits?: number;
   enrolledStudents?: string[];
+  enrolledFaculty?: string[];
   duration?: string;
   progress?: number;
-  status: "enrolled" | "completed" | "available";
+  status?: "enrolled" | "completed" | "available";
 };
 
 const Courses = () => {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fallbackCourses: Course[] = [
-    {
-      id: "1",
-      name: "Web Development Fundamentals",
-      code: "WEB101",
-      description: "Build responsive web applications with modern frontend tools.",
-      instructor: "Dr. Smith",
-      students: 45,
-      duration: "12 weeks",
-      progress: 65,
-      status: user?.role === "Student" ? "enrolled" : "available",
-    },
-    {
-      id: "2",
-      name: "Data Structures & Algorithms",
-      code: "DSA201",
-      description: "Practice core data structures, algorithms, and problem solving.",
-      instructor: "Prof. Johnson",
-      students: 38,
-      duration: "10 weeks",
-      progress: 30,
-      status: user?.role === "Student" ? "enrolled" : "available",
-    },
-    {
-      id: "3",
-      name: "UI/UX Design Principles",
-      code: "DES110",
-      description: "Learn user-centered interface design and usability principles.",
-      instructor: "Ms. Williams",
-      students: 52,
-      duration: "8 weeks",
-      status: "available",
-    },
-  ];
-
-  const [courses, setCourses] = useState<Course[]>(fallbackCourses);
-
-  React.useEffect(() => {
-    const loadCourses = async () => {
+  useEffect(() => {
+    const fetchCourses = async () => {
       try {
         setLoading(true);
-        setError("");
-        const result = await getCourses();
-        const apiCourses = (result.data || []).map((course: Course) => ({
-          ...course,
-          status:
-            user?.role === "Student" && course.enrolledStudents?.includes(user.email)
-              ? "enrolled"
-              : "available",
-          progress:
-            user?.role === "Student" && course.enrolledStudents?.includes(user.email)
-              ? 35
-              : undefined,
-        }));
+        const response = await fetch("/api/courses");
+        const data = await response.json();
 
-        setCourses(apiCourses.length > 0 ? apiCourses : fallbackCourses);
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch courses");
+        }
+
+        setCourses(data.data || []);
+        setError("");
       } catch (err) {
-        console.error("Failed to load courses:", err);
-        setError("Could not load live courses. Showing sample courses.");
-        setCourses(fallbackCourses);
+        setError(err instanceof Error ? err.message : "Failed to fetch courses");
       } finally {
         setLoading(false);
       }
     };
 
-    loadCourses();
-  }, [user?.email, user?.role]);
+    fetchCourses();
+  }, []);
 
   const filteredCourses = courses.filter((course) => {
     const query = searchTerm.trim().toLowerCase();
@@ -236,36 +195,25 @@ const Courses = () => {
               )}
             </div>
 
-            {error && (
-              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                {error}
+            {loading && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading courses...</p>
+            )}
+
+            {error && !loading && (
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+
+            {!loading && !error && filteredCourses.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No courses found.
               </div>
             )}
 
-            {loading ? (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                Loading courses...
-              </div>
-            ) : filteredCourses.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 text-center">
-                <BookOpen className="mx-auto mb-3 text-gray-400" size={32} />
-                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                  No courses found
-                </h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Try searching by course name, code, instructor, or description.
-                </p>
-              </div>
-            ) : (
+            {!loading && !error && filteredCourses.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCourses.map((course) => {
-                  const courseId = course._id || course.id || course.name || "";
-                  const courseTitle = course.name || course.title || "Untitled course";
-                  const studentCount = course.enrolledStudents?.length ?? course.students ?? 0;
-
-                  return (
+              {filteredCourses.map((course) => (
                 <div
-                  key={courseId}
+                  key={course._id || course.id || course.code || course.name}
                   className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-4 mb-4">
@@ -274,10 +222,10 @@ const Courses = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                        {courseTitle}
+                        {course.name || course.title || "Untitled course"}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {course.instructor}
+                        {course.code ? `${course.code} | ${course.instructor}` : course.instructor}
                       </p>
                       {course.code && (
                         <p className="mt-1 text-xs font-medium text-orange-500">
@@ -296,72 +244,33 @@ const Courses = () => {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Users size={16} />
-                      <span>{studentCount} students</span>
+                      <span>{course.enrolledStudents?.length || 0} students</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Clock size={16} />
-                      <span>{course.duration || "Self-paced"}</span>
+                      <span>{course.semester || "Semester not set"}</span>
                     </div>
+                    {typeof course.credits === "number" && (
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        {course.credits} credits
+                      </div>
+                    )}
                   </div>
 
-                  {user?.role === "Student" && course.progress !== undefined && (
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        <span>Progress</span>
-                        <span>{course.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div
-                          className="bg-orange-500 h-2 rounded-full transition-all"
-                          style={{ width: `${course.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   <div className="flex gap-2">
-                    {user?.role === "Student" && course.status === "available" && (
-                      <button
-                        type="button"
-                        onClick={() => handleEnroll(courseId)}
-                        className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium"
-                      >
+                    {user?.role === "Student" && (
+                      <button className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium">
                         Enroll
                       </button>
                     )}
-                    {user?.role === "Student" && course.status === "enrolled" && (
-                      <button
-                        type="button"
-                        onClick={() => goToCourseContent(course)}
-                        className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
-                      >
-                        Continue Learning
-                      </button>
-                    )}
-                    {user?.role === "Faculty" && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          window.location.href = "/faculty-content";
-                        }}
-                        className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
-                      >
-                        Add Content
-                      </button>
-                    )}
-                    {(user?.role === "Superadmin" || user?.role === "Admin") && (
-                      <button
-                        type="button"
-                        onClick={() => goToCourseContent(course)}
-                        className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
-                      >
+                    {(user?.role === "Faculty" || user?.role === "Admin") && (
+                      <button className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium">
                         Manage
                       </button>
                     )}
                   </div>
                 </div>
-                  );
-                })}
+              ))}
               </div>
             )}
           </div>
@@ -372,4 +281,3 @@ const Courses = () => {
 };
 
 export default Courses;
-

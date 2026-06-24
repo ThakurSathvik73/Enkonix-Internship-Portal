@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-// Custom ThemeProvider for per-tab theme (no localStorage/global sync)
 import { createContext, useContext, useState } from "react";
 
 type Theme = "light" | "dark";
@@ -15,7 +14,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("theme");
+      const stored = localStorage.getItem("theme") || sessionStorage.getItem("theme");
       if (stored === "dark" || stored === "light") return stored as Theme;
     }
     return "light";
@@ -26,6 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(theme);
     if (typeof window !== "undefined") {
+      localStorage.setItem("theme", theme);
       sessionStorage.setItem("theme", theme);
     }
   }, [theme]);
