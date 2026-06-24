@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { ModeToggle } from "./theme/ModeToggle";
 
 type Props = {};
-
+// new comment
 const searchablePages = [
   {
     title: "Dashboard",

@@ -163,7 +163,7 @@ const Courses = () => {
                 </button>
               )}
             </div>
-
+//new comment 
             <div className="mb-6">
               <div className="relative">
                 <Search
