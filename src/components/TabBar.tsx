@@ -3,6 +3,105 @@ import { useState } from "react";
 import { ModeToggle } from "./theme/ModeToggle";
 
 type Props = {};
+// new comment
+const searchablePages = [
+  {
+    title: "Dashboard",
+    description: "Overview, quick actions, classes, resources, and tasks",
+    path: "/dashbord",
+    keywords: "home overview dashboard quick actions classes resources tasks",
+  },
+  {
+    title: "Courses",
+    description: "Browse, continue, and manage courses",
+    path: "/courses",
+    keywords: "course courses learning enrolled instructor students",
+  },
+  {
+    title: "Assignments",
+    description: "View, submit, and manage assignments",
+    path: "/assignments",
+    keywords: "assignment assignments submission due course grade",
+  },
+  {
+    title: "Schedule",
+    description: "Classes, meetings, calendar, and events",
+    path: "/schedule",
+    keywords: "schedule calendar class meeting event live",
+  },
+  {
+    title: "Recordings",
+    description: "Watch and manage class recordings",
+    path: "/recordings",
+    keywords: "recording recordings video lecture class",
+  },
+  {
+    title: "Videos",
+    description: "Student course videos and recordings",
+    path: "/student-videos",
+    keywords: "video videos student recordings course watch",
+  },
+  {
+    title: "Notes",
+    description: "Read course notes and study material",
+    path: "/student-notes",
+    keywords: "note notes study material topic course",
+  },
+  {
+    title: "Discussions",
+    description: "Ask questions and join course discussions",
+    path: "/discussions",
+    keywords: "discussion discussions doubt question reply forum",
+  },
+  {
+    title: "Resources",
+    description: "Files, downloads, and learning resources",
+    path: "/resources",
+    keywords: "resource resources file pdf image download material",
+  },
+  {
+    title: "Downloads",
+    description: "Downloadable course files",
+    path: "/downloads",
+    keywords: "download downloads file course syllabus",
+  },
+  {
+    title: "Tasks",
+    description: "Assigned work and to-do items",
+    path: "/tasks",
+    keywords: "task tasks todo assigned work course",
+  },
+  {
+    title: "Users",
+    description: "Manage admins, faculty, and students",
+    path: "/users",
+    keywords: "user users admin faculty student email role",
+  },
+  {
+    title: "Students",
+    description: "View student profiles and course enrollment",
+    path: "/students",
+    keywords: "student students course email grade",
+  },
+  {
+    title: "Settings",
+    description: "Profile, preferences, and notifications",
+    path: "/settings",
+    keywords: "settings profile notification password theme",
+  },
+  {
+    title: "Content Manager",
+    description: "Manage courses, videos, recordings, and notes",
+    path: "/admin-content",
+    keywords: "content manager admin courses videos recordings notes",
+  },
+  {
+    title: "Create Content",
+    description: "Faculty content creation for courses",
+    path: "/faculty-content",
+    keywords: "faculty create content videos recordings notes course",
+  },
+];
 
 const TabBar = (props: Props) => {
   const [searchQuery, setSearchQuery] = useState("");

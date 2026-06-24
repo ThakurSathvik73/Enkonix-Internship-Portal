@@ -1,7 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import { Menu, MessageSquare, Plus, Search, X, User, Clock } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,7 +12,6 @@ type Discussion = {
   course: string;
   replies: number;
   lastActivity: string;
-  isPinned?: boolean;
 };
 
 const Discussions = () => {
@@ -20,40 +19,47 @@ const Discussions = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showNewDiscussionModal, setShowNewDiscussionModal] = useState(false);
-  const [discussions, setDiscussions] = useState<Discussion[]>([
-    {
-      id: "1",
-      title: "Question about React Hooks",
-      author: "John Doe",
-      course: "Web Development",
-      replies: 12,
-      lastActivity: "2 hours ago",
-      isPinned: true,
-    },
-    {
-      id: "2",
-      title: "Assignment Submission Deadline",
-      author: "Dr. Smith",
-      course: "Data Structures",
-      replies: 5,
-      lastActivity: "5 hours ago",
-      isPinned: true,
-    },
-    {
-      id: "3",
-      title: "Study Group for Final Exam",
-      author: "Jane Smith",
-      course: "UI/UX Design",
-      replies: 8,
-      lastActivity: "1 day ago",
-    },
-  ]);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [newDiscussion, setNewDiscussion] = useState({
     title: "",
     course: "",
     content: "",
   });
+
+  const mapDiscussion = (item: any): Discussion => ({
+    id: item._id,
+    title: item.title,
+    author: item.createdBy || "Unknown",
+    course: item.course,
+    replies: Array.isArray(item.replies) ? item.replies.length : 0,
+    lastActivity: new Date(item.updatedAt || item.createdAt || Date.now()).toLocaleString(),
+  });
+
+  useEffect(() => {
+    const fetchDiscussions = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/content/discussions");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch discussions");
+        }
+
+        setDiscussions((data.data || []).map(mapDiscussion));
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch discussions");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDiscussions();
+  }, []);
 
   const handleCreateDiscussion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +199,21 @@ const Discussions = () => {
               </div>
             </div>
 
+            {loading && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading discussions...</p>
+            )}
+
+            {error && !loading && (
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+
+            {!loading && !error && filteredDiscussions.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No discussions found.
+              </div>
+            )}
+
+            {!loading && !error && filteredDiscussions.length > 0 && (
             <div className="space-y-3">
               {filteredDiscussions.map((discussion) => (
                 <div
@@ -207,11 +228,6 @@ const Discussions = () => {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                           {discussion.title}
-                          {discussion.isPinned && (
-                            <span className="ml-2 text-xs bg-orange-500 text-white px-2 py-0.5 rounded">
-                              Pinned
-                            </span>
-                          )}
                         </h3>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -237,6 +253,7 @@ const Discussions = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
-import { Menu, CheckSquare, Plus, Search, X, User, Users, Calendar, ArrowRight } from "lucide-react";
+import { Menu, CheckSquare, Plus, Search, X, User, Users, Calendar, Trash2 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ type Task = {
   title: string;
   description: string;
   course: string;
+  college?: string;
   createdBy: string;
   assignedTo?: string;
   assignedStudents?: string[];
@@ -32,6 +33,8 @@ const TasksPage = () => {
     title: "",
     description: "",
     course: "",
+    college: "",
+    assignedTo: "",
     dueDate: "",
   });
   const [assignData, setAssignData] = useState({
@@ -40,8 +43,10 @@ const TasksPage = () => {
   });
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (user?.email && user?.role) {
+      fetchTasks();
+    }
+  }, [user?.email, user?.role]);
 
   const fetchTasks = async () => {
     try {
@@ -70,12 +75,15 @@ const TasksPage = () => {
         method: "POST",
         body: JSON.stringify({
           ...newTask,
+          role: user?.role || "",
+          assignedTo: newTask.assignedTo || "",
+          createdBy: user?.email || "",
         }),
       });
 
       await fetchTasks();
       setShowCreateModal(false);
-      setNewTask({ title: "", description: "", course: "", dueDate: "" });
+      setNewTask({ title: "", description: "", course: "", college: "", assignedTo: "", dueDate: "" });
       alert("Task created successfully!");
     } catch (error) {
       console.error("Failed to create task:", error);
@@ -139,14 +147,51 @@ const TasksPage = () => {
     }
   };
 
+  const handleDeleteTask = async (task: Task) => {
+    const taskId = task._id || task.id;
+    if (!taskId) {
+      alert("Task ID is missing");
+      return;
+    }
+
+    if (!confirm(`Delete "${task.title}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: taskId,
+          role: user?.role || "",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to delete task" }));
+        throw new Error(errorData.error || "Failed to delete task");
+      }
+
+      await fetchTasks();
+      alert("Task deleted successfully!");
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete task");
+    }
+  };
+
   const filteredTasks = tasks.filter(
     (task) =>
       (task.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (task.course || "").toLowerCase().includes(searchTerm.toLowerCase())
+      (task.course || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (task.college || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (task.assignedTo || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const canCreateTask = user?.role === "Admin";
-  const canAssignTask = user?.role === "Faculty" || user?.role === "Admin";
+  const canCreateTask = user?.role === "Superadmin" || user?.role === "Admin";
+  const canDeleteTask = user?.role === "Superadmin" || user?.role === "Admin";
+  const canAssignTask = user?.role === "Superadmin" || user?.role === "Faculty" || user?.role === "Admin";
 
   return (
     <>
@@ -203,8 +248,9 @@ const TasksPage = () => {
                   Tasks
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {user?.role === "Superadmin" && "Create and monitor tasks across the platform"}
                   {user?.role === "Admin" && "Create tasks and assign them to faculty"}
-                  {user?.role === "Faculty" && "View tasks assigned to you and assign them to students"}
+                  {user?.role === "Faculty" && "View assigned tasks and assign them to students"}
                   {user?.role === "Student" && "View tasks assigned to you"}
                 </p>
               </div>
@@ -284,8 +330,24 @@ const TasksPage = () => {
                           </span>
                           <span>•</span>
                           <span>{task.course}</span>
+                          {task.college && (
+                            <>
+                              <span> / </span>
+                              <span>{task.college}</span>
+                            </>
+                          )}
                         </div>
                       </div>
+                      {canDeleteTask && (
+                        <button
+                          onClick={() => handleDeleteTask(task)}
+                          className="ml-3 inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+                          aria-label={`Delete ${task.title}`}
+                          title="Delete task"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-800">
@@ -304,7 +366,7 @@ const TasksPage = () => {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        {user?.role === "Admin" && !task.assignedTo && (
+                        {(user?.role === "Superadmin" || user?.role === "Admin") && !task.assignedTo && (
                           <button
                             onClick={() => setShowAssignModal(task)}
                             className="px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600"
@@ -367,6 +429,29 @@ const TasksPage = () => {
                     onChange={(e) => setNewTask({ ...newTask, course: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    College
+                  </label>
+                  <input
+                    type="text"
+                    value={newTask.college}
+                    onChange={(e) => setNewTask({ ...newTask, college: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Faculty Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newTask.assignedTo}
+                    onChange={(e) => setNewTask({ ...newTask, assignedTo: e.target.value })}
+                    placeholder="faculty@gmail.com"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
                 <div>
@@ -439,7 +524,7 @@ const TasksPage = () => {
                   </p>
                 </div>
 
-                {user?.role === "Admin" && !showAssignModal.assignedTo && (
+                {(user?.role === "Superadmin" || user?.role === "Admin") && !showAssignModal.assignedTo && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Assign to Faculty (Email) *

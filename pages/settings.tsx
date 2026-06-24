@@ -4,11 +4,13 @@ import { Menu, Settings as SettingsIcon, User, Bell, Shield, Moon, Sun, X, Save 
 import React, { useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 const SettingsPage = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(theme === "dark");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -31,10 +33,43 @@ const SettingsPage = () => {
     tasks: true,
     discussions: true,
   });
+  const settingsKey = user?.email
+    ? `settings:${user.email.toLowerCase()}`
+    : "settings";
 
   React.useEffect(() => {
     setProfileName(user?.name || "");
-  }, [user?.name]);
+
+    const savedSettings = localStorage.getItem(settingsKey);
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        if (typeof parsedSettings.darkMode === "boolean") {
+          setDarkMode(parsedSettings.darkMode);
+          setTheme(parsedSettings.darkMode ? "dark" : "light");
+        }
+        if (parsedSettings.notifications) {
+          setNotifications((current) => ({ ...current, ...parsedSettings.notifications }));
+        }
+        if (parsedSettings.securitySettings) {
+          setSecuritySettings((current) => ({ ...current, ...parsedSettings.securitySettings }));
+        }
+      } catch (error) {
+        console.error("Failed to load saved settings:", error);
+      }
+      return;
+    }
+    setDarkMode(theme === "dark");
+  }, [settingsKey, setTheme, theme, user?.name]);
+
+  React.useEffect(() => {
+    setDarkMode(theme === "dark");
+  }, [theme]);
+
+  const handleDarkModeChange = (enabled: boolean) => {
+    setDarkMode(enabled);
+    setTheme(enabled ? "dark" : "light");
+  };
 
   const handleSaveChanges = () => {
     const settings = {
@@ -43,11 +78,12 @@ const SettingsPage = () => {
       notifications,
       securitySettings,
     };
-    localStorage.setItem("settings", JSON.stringify(settings));
+    localStorage.setItem(settingsKey, JSON.stringify(settings));
 
     if (user) {
       const updatedUser = { ...user, name: profileName.trim() || user.name };
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      updateUser({ name: updatedUser.name });
     }
 
     setSaveMessage("Settings saved successfully.");
@@ -237,7 +273,7 @@ const SettingsPage = () => {
                   <input
                     type="checkbox"
                     checked={darkMode}
-                    onChange={(e) => setDarkMode(e.target.checked)}
+                    onChange={(e) => handleDarkModeChange(e.target.checked)}
                     className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
                   />
                 </label>

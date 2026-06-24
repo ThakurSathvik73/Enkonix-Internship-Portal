@@ -1,7 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import { Menu, BookOpen, Users, Clock, X, Search, Plus } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -9,16 +9,75 @@ type Course = {
   id: string;
   title: string;
   instructor: string;
+  students?: number;
+  semester?: string;
+  credits?: number;
+  enrolledStudents?: string[];
+  enrolledFaculty?: string[];
+  duration?: string;
   students: number;
   duration: string;
   progress?: number;
-  status: "enrolled" | "completed" | "available";
+  status?: "enrolled" | "completed" | "available";
 };
 
 const Courses = () => {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/courses");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch courses");
+        }
+
+        setCourses(data.data || []);
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch courses");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  const filteredCourses = courses.filter((course) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
+
+    return [
+      course.name,
+      course.title,
+      course.code,
+      course.description,
+      course.instructor,
+    ]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(query));
+  });
+
+  const canCreateCourse = user?.role === "Superadmin" || user?.role === "Admin";
+
+  const handleEnroll = (courseId: string) => {
+    setCourses((current) =>
+      current.map((course) =>
+        (course._id || course.id) === courseId
+          ? { ...course, status: "enrolled", progress: 0 }
+          : course,
+      ),
+    );
+  };
 
   // Mock data - in production, fetch from API
   const [courses] = useState<Course[]>([
@@ -124,7 +183,7 @@ const Courses = () => {
                 </button>
               )}
             </div>
-
+//new comment 
             <div className="mb-6">
               <div className="relative">
                 <Search
@@ -141,6 +200,25 @@ const Courses = () => {
               </div>
             </div>
 
+            {loading && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading courses...</p>
+            )}
+
+            {error && !loading && (
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+
+            {!loading && !error && filteredCourses.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No courses found.
+              </div>
+            )}
+
+            {!loading && !error && filteredCourses.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCourses.map((course) => (
+                <div
+                  key={course._id || course.id || course.code || course.name}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCourses.map((course) => (
                 <div
@@ -153,10 +231,11 @@ const Courses = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        {course.name || course.title || "Untitled course"}
                         {course.title}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {course.instructor}
+                        {course.code ? `${course.code} | ${course.instructor}` : course.instructor}
                       </p>
                     </div>
                   </div>
@@ -164,30 +243,26 @@ const Courses = () => {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Users size={16} />
+                      <span>{course.enrolledStudents?.length || 0} students</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                      <Clock size={16} />
+                      <span>{course.semester || "Semester not set"}</span>
                       <span>{course.students} students</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                       <Clock size={16} />
                       <span>{course.duration}</span>
                     </div>
+                    {typeof course.credits === "number" && (
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        {course.credits} credits
+                      </div>
+                    )}
                   </div>
 
-                  {user?.role === "Student" && course.progress !== undefined && (
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        <span>Progress</span>
-                        <span>{course.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div
-                          className="bg-orange-500 h-2 rounded-full transition-all"
-                          style={{ width: `${course.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   <div className="flex gap-2">
+                    {user?.role === "Student" && (
                     {user?.role === "Student" && course.status === "available" && (
                       <button className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium">
                         Enroll
@@ -206,6 +281,8 @@ const Courses = () => {
                   </div>
                 </div>
               ))}
+              </div>
+            )}
             </div>
           </div>
         </div>
@@ -215,4 +292,3 @@ const Courses = () => {
 };
 
 export default Courses;
-

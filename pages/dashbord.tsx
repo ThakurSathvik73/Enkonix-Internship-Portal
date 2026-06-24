@@ -43,15 +43,7 @@ interface TodoProps {
 
 const attendanceData: { subject: string; present: number; total: number; percentage: number }[] = [];
 
-const data = [
-  { name: "Mon", hours: 4 },
-  { name: "Tue", hours: 3 },
-  { name: "Wed", hours: 6 },
-  { name: "Thu", hours: 5 },
-  { name: "Fri", hours: 0 },
-  { name: "Sat", hours: 0 },
-  { name: "Sun", hours: 0 },
-];
+const data: { name: string; hours: number }[] = [];
 interface ResourcesProps {
   name: string;
   size: string;
@@ -59,11 +51,20 @@ interface ResourcesProps {
   type: "pdf" | "image" | "fig";
   color: "red" | "green" | "blue";
 }
-const percentage = 89; // 8.9 out of 10 = 89%
-const circumference = 2 * Math.PI * 45;
-const strokeDashoffset = circumference - (percentage / 100) * circumference;
+type RecentGrade = {
+  subject: string;
+  grade: string;
+  score: number;
+  credits: number;
+};
 
-const recentGrades: { subject: string; grade: string; score: number; credits: number }[] = [];
+const formatGradeLabel = (score: number) => {
+  if (score >= 9) return "A";
+  if (score >= 8) return "B";
+  if (score >= 7) return "C";
+  if (score >= 6) return "D";
+  return "F";
+};
 
 const dashbord = (props: Props) => {
   const { user } = useAuth();
@@ -73,6 +74,9 @@ const dashbord = (props: Props) => {
   }>({});
   const [showResourceModal, setShowResourceModal] = React.useState(false);
   const [resources, setResources] = React.useState<ResourcesProps[]>([]);
+  const [recentGrades, setRecentGrades] = React.useState<RecentGrade[]>([]);
+  const [performancePeriod, setPerformancePeriod] = React.useState("Monthly");
+  const [showPerformanceMenu, setShowPerformanceMenu] = React.useState(false);
   const [showTodoModal, setShowTodoModal] = React.useState(false);
   const [newTodo, setNewTodo] = React.useState<TodoProps>({
     task: "",
@@ -267,44 +271,58 @@ const dashbord = (props: Props) => {
     fetchTasks();
   }, [user]);
 
-  const gpa = 3.8;
+  React.useEffect(() => {
+    const fetchRecentGrades = async () => {
+      try {
+        const response = await fetch(`/api/assignments?role=${user?.role || ""}&email=${user?.email || ""}`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const gradedAssignments = Array.isArray(data.data)
+          ? data.data
+              .filter((assignment: any) => typeof assignment.grade === "number")
+              .slice(0, 5)
+              .map((assignment: any) => {
+                const score = Number(assignment.grade);
+                return {
+                  subject: assignment.course || assignment.title || "Assignment",
+                  grade: formatGradeLabel(score),
+                  score,
+                  credits: 0,
+                };
+              })
+          : [];
+
+        setRecentGrades(gradedAssignments);
+      } catch (error) {
+        console.error("Failed to fetch recent grades:", error);
+        setRecentGrades([]);
+      }
+    };
+
+    fetchRecentGrades();
+  }, [user?.email, user?.role]);
+
   const [selectedAnnouncement, setSelectedAnnouncement] =
     React.useState<any>(null);
-  const announcements: {
+  const [announcements, setAnnouncements] = React.useState<{
     title: string;
     description: string;
     time: string;
     important: boolean;
+  }[]>([]);
+  const upcomingClasses: {
+    subject: string;
+    time: string;
+    room: string;
+    type: string;
+    professor: string;
+    link: string;
+    status: string;
   }[] = [];
-  const upcomingClasses = [
-    {
-      subject: "Web Development",
-      time: "09:00 AM - 10:30 AM",
-      room: "Lab 301",
-      type: "practical",
-      professor: "Dr. Smith",
-      link: "https://teams.microsoft.com/meet/4130215984327?p=OQRlQMQCtq8OAnpopR",
-      status: "live",
-    },
-    {
-      subject: "Data Structures",
-      time: "11:00 AM - 12:30 PM",
-      room: "Room 205",
-      type: "lecture",
-      professor: "Prof. Johnson",
-      link: "https://teams.microsoft.com/meet/4130215984327?p=OQRlQMQCtq8OAnpopR",
-      status: "upcoming",
-    },
-    {
-      subject: "UI/UX Design",
-      time: "02:00 PM - 03:30 PM",
-      room: "Online",
-      type: "online",
-      professor: "Ms. Williams",
-      link: "https://teams.microsoft.com/meet/4130215984327?p=OQRlQMQCtq8OAnpopR",
-      status: "upcoming",
-    },
-  ];
   const todos: TodoProps[] = [];
   const quickActions = [
     {
@@ -342,6 +360,36 @@ const dashbord = (props: Props) => {
   const handleAnnouncementClick = (announcement: any) => {
     setSelectedAnnouncement(announcement);
   };
+  React.useEffect(() => {
+    if (!user?.email || !user?.role) return;
+
+    const fetchAnnouncements = async () => {
+      try {
+        const response = await fetch(`/api/announcements?role=${user.role}&email=${user.email}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.success) {
+          setAnnouncements(
+            (data.data || []).map((announcement: any) => ({
+              title: announcement.title,
+              description: announcement.description,
+              time: announcement.createdAt
+                ? new Date(announcement.createdAt).toLocaleString()
+                : "",
+              important: Boolean(announcement.important),
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch announcements:", error);
+        setAnnouncements([]);
+      }
+    };
+
+    fetchAnnouncements();
+  }, [user?.email, user?.role]);
   const totalPercentage = attendanceData.length
     ? Math.round(
         attendanceData.reduce((acc, item) => acc + item.percentage, 0) /
@@ -459,7 +507,7 @@ const dashbord = (props: Props) => {
                     Upcoming Classes
                   </h3>
                   <div className="space-y-3">
-                    {upcomingClasses.map((classItem, index) => (
+                    {upcomingClasses.length > 0 ? upcomingClasses.map((classItem, index) => (
                       <div
                         key={index}
                         onClick={() => {
@@ -515,7 +563,11 @@ const dashbord = (props: Props) => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No upcoming classes available.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-300 hover:shadow-lg">
@@ -523,7 +575,7 @@ const dashbord = (props: Props) => {
                     Announcements
                   </h3>
                   <div className="space-y-3">
-                    {announcements.map((announcement, index) => (
+                    {announcements.length > 0 ? announcements.map((announcement, index) => (
                       <div
                         key={index}
                         onClick={() => handleAnnouncementClick?.(announcement)}
@@ -570,7 +622,11 @@ const dashbord = (props: Props) => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                        No announcements available.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -661,39 +717,43 @@ const dashbord = (props: Props) => {
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       Recent Grades
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <Award size={16} className="text-yellow-500" />
-                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        GPA: {gpa}
-                      </span>
-                    </div>
+                    <Award size={16} className="text-yellow-500" />
                   </div>
 
                   <div className="space-y-3">
-                    {recentGrades.map((grade, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-pointer group active:scale-95 hover:bg-gray-50 dark:hover:bg-gray-800"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium mb-1 transition-colors truncate text-gray-900 dark:text-gray-100">
-                            {grade.subject}
-                          </h4>
-                          <p className="text-xs text-gray-600 dark:text-gray-300">
-                            {grade.credits} Credits • {grade.score}%
-                          </p>
-                        </div>
+                    {recentGrades.length > 0 ? (
+                      recentGrades.map((grade, index) => (
                         <div
-                          className={`flex items-center justify-center w-12 h-12 rounded-lg font-semibold shrink-0 ${
-                            grade.grade.startsWith("A")
-                              ? "dark:bg-green-900/30 dark:text-green-400 bg-green-50 text-green-600"
-                              : "dark:bg-blue-900/30 dark:text-blue-400 bg-blue-50 text-blue-600"
-                          }`}
+                          key={index}
+                          className="flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-pointer group active:scale-95 hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
-                          {grade.grade}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium mb-1 transition-colors truncate text-gray-900 dark:text-gray-100">
+                              {grade.subject}
+                            </h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-300">
+                              Score: {grade.score}/10
+                            </p>
+                          </div>
+                          <div
+                            className={`flex items-center justify-center w-12 h-12 rounded-lg font-semibold shrink-0 ${
+                              grade.grade.startsWith("A")
+                                ? "dark:bg-green-900/30 dark:text-green-400 bg-green-50 text-green-600"
+                                : "dark:bg-blue-900/30 dark:text-blue-400 bg-blue-50 text-blue-600"
+                            }`}
+                          >
+                            {grade.grade}
+                          </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center">
+                        <Award className="mx-auto mb-3 text-gray-400" size={28} />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No recent grades available.
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -707,29 +767,11 @@ const dashbord = (props: Props) => {
                   <h3 className="text-sm mb-4 font-semibold text-gray-900 dark:text-gray-100">
                     Recent enrolled course
                   </h3>
-                  <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 bg-orange-50 dark:bg-orange-900/30">
-                      <Pencil
-                        size={28}
-                        className="transition-colors duration-300 text-orange-500"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="mb-2 transition-colors duration-200 truncate text-gray-900 dark:text-gray-100 font-medium">
-                        Product Design Course
-                      </h4>
-                      <div className="mb-2">
-                        <div className="w-full rounded-full h-2 overflow-hidden bg-gray-200 dark:bg-gray-700">
-                          <div
-                            className="h-2 rounded-full transition-all duration-500 bg-orange-500"
-                            style={{ width: "70%" }}
-                          ></div>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        14/10 Tasks
-                      </p>
-                    </div>
+                  <div className="py-8 text-center">
+                    <BookOpen className="mx-auto mb-3 text-gray-400" size={28} />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No enrolled courses available.
+                    </p>
                   </div>
                 </div>
                 {/* Your Resources */}
@@ -996,63 +1038,73 @@ const dashbord = (props: Props) => {
                   <h3 className="text-sm mb-6 font-semibold text-gray-900 dark:text-gray-100">
                     Hours Spent
                   </h3>
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={data}>
-                      <XAxis
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: "#9CA3AF" }}
-                      />
-                      <Bar
-                        dataKey="hours"
-                        fill="#F97316"
-                        radius={[4, 4, 0, 0]}
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {data.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={data}>
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: "#9CA3AF" }}
+                        />
+                        <Bar
+                          dataKey="hours"
+                          fill="#F97316"
+                          radius={[4, 4, 0, 0]}
+                          className="cursor-pointer hover:opacity-80 transition-opacity"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[120px] flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                      No hours data available.
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-300 hover:shadow-lg group">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       Performance
                     </h3>
-                    <button className="flex items-center gap-1 text-sm px-2 py-1 rounded transition-all duration-200 active:scale-95 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-                      Monthly <ChevronDown size={14} />
-                    </button>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowPerformanceMenu((current) => !current)}
+                        className="flex items-center gap-1 text-sm px-2 py-1 rounded transition-all duration-200 active:scale-95 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        aria-haspopup="menu"
+                        aria-expanded={showPerformanceMenu}
+                      >
+                        {performancePeriod} <ChevronDown size={14} />
+                      </button>
+                      {showPerformanceMenu && (
+                        <div className="absolute right-0 top-full z-20 mt-2 w-32 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1">
+                          {["Weekly", "Monthly", "Yearly"].map((period) => (
+                            <button
+                              key={period}
+                              type="button"
+                              onClick={() => {
+                                setPerformancePeriod(period);
+                                setShowPerformanceMenu(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                                performancePeriod === period
+                                  ? "text-orange-500 font-semibold"
+                                  : "text-gray-700 dark:text-gray-200"
+                              }`}
+                            >
+                              {period}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-center">
-                    <div className="relative w-28 h-28 lg:w-32 lg:h-32 cursor-pointer group-hover:scale-110 transition-transform duration-300">
-                      <svg className="transform -rotate-90 w-full h-full">
-                        <circle
-                          cx="50%"
-                          cy="50%"
-                          r="45"
-                          stroke="#F3F4F6"
-                          strokeWidth="8"
-                          fill="none"
-                        />
-                        <circle
-                          cx="50%"
-                          cy="50%"
-                          r="45"
-                          stroke="#F97316"
-                          strokeWidth="8"
-                          fill="none"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={strokeDashoffset}
-                          strokeLinecap="round"
-                          className="transition-all duration-500"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-2xl font-semibold transition-colors duration-300 text-gray-900 dark:text-gray-100">
-                          8.9
-                        </span>
-                      </div>
-                    </div>
+                  <div className="h-[120px] flex flex-col items-center justify-center text-center">
+                    <Award className="mb-3 text-gray-400" size={28} />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No performance data available.
+                    </p>
                   </div>
                 </div>
               </div>

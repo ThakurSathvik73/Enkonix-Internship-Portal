@@ -1,8 +1,10 @@
 import calenderevents from "@/data/models/calenderevents";
 import { connectDB } from "@/data/database/mangodb";
+import AnnouncementModel from "@/data/models/announcement";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type CalendarEvent = {
+  _id?: string;
   title: string;
   date: string;
   time?: string;
@@ -13,6 +15,16 @@ type CalendarEvent = {
 
 // In-memory storage (replace with actual database)
 let events: CalendarEvent[] = [];
+
+const normalizeEvent = (event: any): CalendarEvent => ({
+  _id: String(event._id || ""),
+  title: event.title,
+  date: event.date,
+  time: event.time,
+  meatingLink: event.meatingLink,
+  color: event.color,
+  assignedTo: event.assignedTo || [],
+});
 
 export default async function handler(
   req: NextApiRequest,
@@ -27,6 +39,7 @@ export default async function handler(
   if (req.method === "GET") {
     // Fetch all events
     events = await calenderevents.find();
+    return res.status(200).json(events.map(normalizeEvent));
     return res.status(200).json(events);
   }
 
@@ -45,6 +58,24 @@ export default async function handler(
       color,
       assignedTo: assignedTo || [],
     });
+    const targetRoles = (assignedTo || []).flatMap((target: string) => {
+      if (target === "faculty") return ["Faculty"];
+      if (target === "students") return ["Student"];
+      return [];
+    });
+
+    await AnnouncementModel.create({
+      title: "New meeting scheduled",
+      description: `${title} is scheduled for ${date}${time ? ` at ${time}` : ""}.`,
+      type: "meeting",
+      targetRoles,
+      targetEmails: [],
+      createdBy: "",
+      sourceType: "event",
+      sourceId: String(newEvent._id),
+      important: true,
+    });
+    return res.status(201).json(normalizeEvent(newEvent));
     return res.status(201).json(newEvent);
   }
 
@@ -55,7 +86,22 @@ export default async function handler(
     if (!id) {
       return res.status(400).json({ error: "Event ID is required" });
     }
-    await calenderevents.findByIdAndDelete(id);
+    const deletedEvent = await calenderevents.findByIdAndDelete(id);
+    if (!deletedEvent) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    await AnnouncementModel.deleteMany({
+      $or: [
+        { sourceType: "event", sourceId: String(id) },
+        {
+          type: "meeting",
+          description: `${deletedEvent.title} is scheduled for ${deletedEvent.date}${
+            deletedEvent.time ? ` at ${deletedEvent.time}` : ""
+          }.`,
+        },
+      ],
+    });
 
     return res.status(200).json({ message: "Event deleted successfully" });
   }

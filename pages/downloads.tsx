@@ -1,54 +1,52 @@
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import { Menu, Download, Search, X, FileText, Calendar, ArrowDown } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useAuth } from "@/contexts/AuthContext";
 
 type DownloadItem = {
-  id: string;
+  _id: string;
   name: string;
   type: string;
   size: string;
-  downloadedAt: string;
-  course: string;
+  desc?: string;
 };
 
 const DownloadsPage = () => {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [downloads, setDownloads] = useState<DownloadItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [downloads] = useState<DownloadItem[]>([
-    {
-      id: "1",
-      name: "Lecture Slides - Week 1",
-      type: "PDF",
-      size: "2.5 MB",
-      downloadedAt: "2024-01-15",
-      course: "Web Development",
-    },
-    {
-      id: "2",
-      name: "Assignment Template",
-      type: "DOCX",
-      size: "150 KB",
-      downloadedAt: "2024-01-18",
-      course: "Data Structures",
-    },
-    {
-      id: "3",
-      name: "Course Syllabus",
-      type: "PDF",
-      size: "1.2 MB",
-      downloadedAt: "2024-01-20",
-      course: "UI/UX Design",
-    },
-  ]);
+  useEffect(() => {
+    const fetchResources = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/getresources");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch downloads");
+        }
+
+        setDownloads(data.resources || []);
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch downloads");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResources();
+  }, []);
 
   const filteredDownloads = downloads.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.course.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.desc || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -125,10 +123,25 @@ const DownloadsPage = () => {
               </div>
             </div>
 
+            {loading && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading downloads...</p>
+            )}
+
+            {error && !loading && (
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+
+            {!loading && !error && filteredDownloads.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No downloads found.
+              </div>
+            )}
+
+            {!loading && !error && filteredDownloads.length > 0 && (
             <div className="space-y-3">
               {filteredDownloads.map((item) => (
                 <div
-                  key={item.id}
+                  key={item._id}
                   className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center gap-4">
@@ -140,16 +153,16 @@ const DownloadsPage = () => {
                         {item.name}
                       </h3>
                       <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <span>{item.course}</span>
-                        <span>•</span>
                         <span>{item.type}</span>
-                        <span>•</span>
+                        <span>|</span>
                         <span>{item.size}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        <Calendar size={12} />
-                        <span>Downloaded on {new Date(item.downloadedAt).toLocaleDateString()}</span>
-                      </div>
+                      {item.desc && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <Calendar size={12} />
+                          <span>{item.desc}</span>
+                        </div>
+                      )}
                     </div>
                     <button className="p-2 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-lg transition-colors">
                       <ArrowDown size={20} />
@@ -158,6 +171,7 @@ const DownloadsPage = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -166,4 +180,3 @@ const DownloadsPage = () => {
 };
 
 export default DownloadsPage;
-

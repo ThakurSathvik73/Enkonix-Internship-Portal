@@ -3,6 +3,7 @@ import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import Head from "next/head";
 import { Menu, X, Plus, Filter } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Note = {
   id: string;
@@ -14,33 +15,6 @@ type Note = {
   attachmentName?: string;
   attachmentUrl?: string;
 };
-
-const sampleNotes: Note[] = [
-  {
-    id: "1",
-    title: "Product Team Meeting",
-    excerpt: "This monthly progress agenda is following these items...",
-    author: "Floyd Miles",
-    tags: ["Weekly", "Product"],
-    date: "2024-03-05T04:25:00.000Z",
-  },
-  {
-    id: "2",
-    title: "Sprint Retro",
-    excerpt: "Highlights, lows, and action items from sprint 12.",
-    author: "Wade Warren",
-    tags: ["Retro", "Agile"],
-    date: "2024-03-02T14:10:00.000Z",
-  },
-  {
-    id: "3",
-    title: "Design Review",
-    excerpt: "Feedback on the new dashboard visual system.",
-    author: "Savannah Nguyen",
-    tags: ["Design", "UI"],
-    date: "2024-03-08T09:30:00.000Z",
-  },
-];
 
 const tagColors: Record<string, string> = {
   Product:
@@ -85,10 +59,13 @@ const trackDownload = (
 };
 
 const NotesPage: React.FC = () => {
+  const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "title">("date");
   const [filterTag, setFilterTag] = useState<string>("All");
-  const [notes, setNotes] = useState<Note[]>(sampleNotes);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [viewNote, setViewNote] = useState<Note | null>(null);
   const [newNote, setNewNote] = useState<Note>({
@@ -103,31 +80,39 @@ const NotesPage: React.FC = () => {
   });
   const [newNoteFile, setNewNoteFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem("notes-data");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setNotes(parsed);
-          return;
-        }
-      }
-      setNotes(sampleNotes);
-    } catch (err) {
-      console.error("Failed to load notes from storage", err);
-    }
-  }, []);
+  const mapNote = (item: any): Note => ({
+    id: item._id,
+    title: item.title,
+    excerpt: item.content,
+    author: item.createdBy || "Unknown",
+    tags: [item.course, item.topic].filter(Boolean),
+    date: item.createdAt || new Date().toISOString(),
+    attachmentName: item.fileUrl ? item.fileUrl.split("/").pop() : "",
+    attachmentUrl: item.fileUrl || "",
+  });
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem("notes-data", JSON.stringify(notes));
-    } catch (err) {
-      console.error("Failed to save notes to storage", err);
-    }
-  }, [notes]);
+    const fetchNotes = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/content/notes");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch notes");
+        }
+
+        setNotes((data.data || []).map(mapNote));
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch notes");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotes();
+  }, []);
 
   const tags = useMemo(() => {
     const set = new Set<string>();
@@ -242,6 +227,20 @@ const NotesPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {loading && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Loading notes...</p>
+                )}
+
+                {error && !loading && (
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                )}
+
+                {!loading && !error && displayed.length === 0 && (
+                  <div className="md:col-span-2 lg:col-span-3 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No notes found.
+                  </div>
+                )}
+
                 {displayed.map((note) => (
                   <div
                     key={note.id}
@@ -328,31 +327,47 @@ const NotesPage: React.FC = () => {
                             console.error("Failed to read file", err);
                           }
                         }
-                        const note: Note = {
-                          ...newNote,
-                          id: crypto.randomUUID(),
-                          date: newNote.date || new Date().toISOString(),
-                          tags: newNote.tags.filter(Boolean),
-                          ...(newNoteFile?.name
-                            ? {
-                                attachmentName: newNoteFile.name,
-                                attachmentUrl,
-                              }
-                            : {}),
-                        };
-                        setNotes((prev) => [note, ...prev]);
-                        setShowModal(false);
-                        setNewNote({
-                          id: "",
-                          title: "",
-                          excerpt: "",
-                          author: "",
-                          tags: [],
-                          date: new Date().toISOString(),
-                          attachmentName: "",
-                          attachmentUrl: "",
-                        });
-                        setNewNoteFile(null);
+                        const [course, topic] = newNote.tags.filter(Boolean);
+
+                        try {
+                          const response = await fetch("/api/content/notes", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              "x-user-role": user?.role || "",
+                              "x-user-email": user?.email || "",
+                            },
+                            body: JSON.stringify({
+                              title: newNote.title,
+                              content: newNote.excerpt,
+                              course,
+                              topic,
+                              fileUrl: attachmentUrl,
+                            }),
+                          });
+                          const data = await response.json();
+
+                          if (!response.ok) {
+                            throw new Error(data.error || "Failed to add note");
+                          }
+
+                          setNotes((prev) => [mapNote(data.data), ...prev]);
+                          setShowModal(false);
+                          setNewNote({
+                            id: "",
+                            title: "",
+                            excerpt: "",
+                            author: "",
+                            tags: [],
+                            date: new Date().toISOString(),
+                            attachmentName: "",
+                            attachmentUrl: "",
+                          });
+                          setNewNoteFile(null);
+                          setError("");
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : "Failed to add note");
+                        }
                       }}
                       className="p-4 space-y-4"
                     >
